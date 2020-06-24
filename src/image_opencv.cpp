@@ -886,6 +886,7 @@ bool check(int x1, int x2, int y1, int y2, int w1, int w2, int h1, int h2)
 extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
 {
     std::cout<<"extern C void draw_detections_cv_v3 \n";
+    int xywh[num][4];
     try 
     {
         cv::Mat *show_img = (cv::Mat*)mat;
@@ -893,7 +894,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
         if (!show_img) return;
         static int frame_id = 0;
         frame_id++;
-        int xywh[num][4];
+        
         int ppl =0;
         for (i = 0; i < num; ++i) 
         {
