@@ -462,7 +462,9 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
 void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes)
 {
     int i;
-
+    printf("draw_detections called")
+    int xywh[num][4];
+    
     for(i = 0; i < num; ++i){
         int class_id = max_index(probs[i], classes);
         float prob = probs[i][class_id];
@@ -477,7 +479,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
             //printf("\n");
 
             int width = im.h * .012;
-
+            
             if(0){
                 width = pow(prob, 1./2.)*10+1;
                 alphabet = 0;
@@ -501,15 +503,22 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
             int top   = (b.y-b.h/2.)*im.h;
             int bot   = (b.y+b.h/2.)*im.h;
 
+            xywh[i][0] = x
+            xywh[i][1] = y
+            xywh[i][2] = w
+            xywh[i][3] = h
+             
             if(left < 0) left = 0;
             if(right > im.w-1) right = im.w-1;
             if(top < 0) top = 0;
             if(bot > im.h-1) bot = im.h-1;
             printf("%s: %.0f%%", names[class_id], prob * 100);
-
+    
+            
             //printf(" - id: %d, x_center: %d, y_center: %d, width: %d, height: %d",
             //    class_id, (right + left) / 2, (bot - top) / 2, right - left, bot - top);
 
+            
             printf("\n");
             draw_box_width(im, left, top, right, bot, width, red, green, blue);
             if (alphabet) {
