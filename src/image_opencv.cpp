@@ -966,10 +966,10 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
 
                 if(class_id == 2)
                 {
-                    xywh[ppl][0] = b.x;
-                    xywh[ppl][1] = b.y + b.h/2;
-                    xywh[ppl][2] = b.w;
-                    xywh[ppl][3] = b.h;
+                    xywh[ppl][0] = left;
+                    xywh[ppl][1] = top;
+                    xywh[ppl][2] = right - left;
+                    xywh[ppl][3] = bottom - top;
                     ppl++;
                 }
             }
