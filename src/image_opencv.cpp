@@ -974,7 +974,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                 }
             }
         }
-        
+        std::cout<<ppl<<std::endl;
         bool sd_main[ppl];
         for(int j=0; j<ppl; j++)
         {
@@ -991,6 +991,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
             }
             sd_main[j] = truth;
         }
+        std::cout<<"out of loop \n";
                 //int b_x_center = (left + right) / 2;
                 //int b_y_center = (top + bot) / 2;
                 //int b_width = right - left;
@@ -1035,6 +1036,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                 
                 if(class_id == 2)
                 {
+                    std::cout<<"changecol"<<counter<<"\n";
                     if(!sd_main[counter])
                     {
                         red = 1;
@@ -1048,6 +1050,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                         green = 1;
                         blue =0;
                     }
+                    std::cout<<"out of detection "<<labelstr;
                     counter++;
                 }
                 float rgb[3];
