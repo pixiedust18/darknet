@@ -330,7 +330,7 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
 {
     static int frame_id = 0;
     frame_id++;
-
+    printf("draw_detections_v3 called");
     int selected_detections_num;
     detection_with_class* selected_detections = get_actual_detections(dets, num, thresh, &selected_detections_num, names);
 
