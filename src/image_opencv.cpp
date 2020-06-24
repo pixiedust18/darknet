@@ -864,20 +864,19 @@ extern "C" void save_cv_jpg(mat_cv *img_src, const char *name)
 // ====================================================================
 // Draw Detection
 // ====================================================================bool
-bool check(x1, x2, y1, y2, w1, w2, h1, h2)
+bool check(int x1, int x2, int y1, int y2, int w1, int w2, int h1, int h2)
 {
     if(x1==x2 and y1==y2)
         return true;
-    coords = [(x1, y1), (x2, y2)]
-    ed = cv::sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+    float ed = cv::sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
     std::cout<<(ed)<<"\n";
     
     x_dist = abs(x1-x2);
     y_dist = abs(y1-y2);
     theta = atan(y_dist / x_dist);
     
-    sd1 = h1 / 1.7 * cos(theta);
-    sd2 = h2 / 1.7 * cos(theta);
+    float sd1 = h1 / 1.7 * cos(theta);
+    float sd2 = h2 / 1.7 * cos(theta);
     
     if (ed > 0 && (sd1 + sd2) > ed)
         return false;
