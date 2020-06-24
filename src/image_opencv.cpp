@@ -866,9 +866,11 @@ extern "C" void save_cv_jpg(mat_cv *img_src, const char *name)
 // ====================================================================bool
 bool check(int x1, int x2, int y1, int y2, int w1, int w2, int h1, int h2)
 {
+    std::cout<<" IN CHECK ";
     if(x1==x2 and y1==y2)
         return true;
-    float ed = cv::sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+    std::cout<<" IN CHECK ";
+    float ed = sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
     std::cout<<(ed)<<"\n";
     
     float x_dist = abs(x1-x2);
