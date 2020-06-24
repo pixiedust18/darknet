@@ -287,7 +287,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
             if (!benchmark && !dontdraw_bbox) draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes, demo_ext_output);
             printf("after dd\n");
             free_detections(local_dets, local_nboxes);
-            printf("Where err????")
+            printf("Where err????");
 
             printf("\nFPS:%.1f \t AVG_FPS:%.1f\n", fps, avg_fps);
 
