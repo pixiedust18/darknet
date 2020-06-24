@@ -980,7 +980,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
             for(int k=0; k<ppl; k++)
             {
                 bool sd = check(xywh[j][0], xywh[k][0], xywh[j][1], xywh[k][1], xywh[j][2], xywh[k][3], xywh[j][3], xywh[k][3]); //x1, x2, y1, y2, w1, w2, h1, h2
-                cout<<j<<" -> "<<k<<" = "<<sd<<"\n";
+                std::cout<<j<<" -> "<<k<<" = "<<sd<<"\n";
                 if(!sd)
                 {
                     truth = false;
