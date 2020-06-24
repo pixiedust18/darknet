@@ -969,7 +969,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                     xywh[ppl][0] = left;
                     xywh[ppl][1] = top;
                     xywh[ppl][2] = right - left;
-                    xywh[ppl][3] = bottom - top;
+                    xywh[ppl][3] = bot - top;
                     ppl++;
                 }
             }
