@@ -886,7 +886,8 @@ bool check(int x1, int x2, int y1, int y2, int w1, int w2, int h1, int h2)
 extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
 {
     std::cout<<"extern C void draw_detections_cv_v3 \n";
-    try {
+    try 
+    {
         cv::Mat *show_img = (cv::Mat*)mat;
         int i, j;
         if (!show_img) return;
@@ -894,12 +895,15 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
         frame_id++;
         int xywh[num][4];
         int ppl =0;
-        for (i = 0; i < num; ++i) {
+        for (i = 0; i < num; ++i) 
+        {
             char labelstr[4096] = { 0 };
             int class_id = -1;
-            for (j = 0; j < classes; ++j) {
+            for (j = 0; j < classes; ++j) 
+            {
                 int show = strncmp(names[j], "dont_show", 9);
-                if (dets[i].prob[j] > thresh && show) {
+                if (dets[i].prob[j] > thresh && show) 
+                {
                     if (class_id < 0) {
                         strcat(labelstr, names[j]);
                         class_id = j;
@@ -915,7 +919,8 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                     }
                 }
             }
-            if (class_id >= 0) {
+            if (class_id >= 0) 
+            {
                 int width = std::max(1.0f, show_img->rows * .002f);
 
                 //if(0){
@@ -966,6 +971,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                 }
             }
         }
+        
         bool sd_main[ppl];
         for(int j=0; j<ppl; j++)
         {
@@ -988,7 +994,8 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                 //int b_height = bot - top;
                 //sprintf(labelstr, "%d x %d - w: %d, h: %d", b_x_center, b_y_center, b_width, b_height);
         int counter =0;
-        for (i = 0; i < num; ++i) {
+        for (i = 0; i < num; ++i) 
+        {
             char labelstr[4096] = { 0 };
             int class_id = -1;
             for (j = 0; j < classes; ++j) {
