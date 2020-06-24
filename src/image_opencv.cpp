@@ -997,7 +997,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
         int counter =0;
         for (i = 0; i < num; ++i) 
         {
-            char labelstr[4096] = { 0 };
+            char *labelstr = "";
             int class_id = -1;
             for (j = 0; j < classes; ++j) {
                 int show = strncmp(names[j], "dont_show", 9);
