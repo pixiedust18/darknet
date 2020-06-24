@@ -503,10 +503,10 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
             int top   = (b.y-b.h/2.)*im.h;
             int bot   = (b.y+b.h/2.)*im.h;
 
-            xywh[i][0] = x;
-            xywh[i][1] = y;
-            xywh[i][2] = w;
-            xywh[i][3] = h;
+            xywh[i][0] = b.x;
+            xywh[i][1] = b.y;
+            xywh[i][2] = b.w;
+            xywh[i][3] = b.h;
              
             if(left < 0) left = 0;
             if(right > im.w-1) right = im.w-1;
