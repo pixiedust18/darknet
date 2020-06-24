@@ -1038,10 +1038,10 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                         red = 1;
                         green =0;
                         blue =0;
-                        labelstr = "No SD"
+                        labelstr = "No SD";
                     } else
                     {
-                        labelstr = "SD"
+                        labelstr = "SD";
                         red = 0;
                         green = 1;
                         blue =0;
