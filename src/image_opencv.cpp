@@ -871,9 +871,9 @@ bool check(int x1, int x2, int y1, int y2, int w1, int w2, int h1, int h2)
     float ed = cv::sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
     std::cout<<(ed)<<"\n";
     
-    x_dist = abs(x1-x2);
-    y_dist = abs(y1-y2);
-    theta = atan(y_dist / x_dist);
+    float x_dist = abs(x1-x2);
+    float y_dist = abs(y1-y2);
+    float theta = atan(y_dist / x_dist);
     
     float sd1 = h1 / 1.7 * cos(theta);
     float sd2 = h2 / 1.7 * cos(theta);
