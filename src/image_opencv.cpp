@@ -863,7 +863,27 @@ extern "C" void save_cv_jpg(mat_cv *img_src, const char *name)
 
 // ====================================================================
 // Draw Detection
-// ====================================================================
+// ====================================================================bool
+bool check(x1, x2, y1, y2, w1, w2, h1, h2)
+{
+    if(x1==x2 and y1==y2)
+        return true;
+    coords = [(x1, y1), (x2, y2)]
+    ed = cv::sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+    std::cout<<(ed)<<"\n";
+    
+    x_dist = abs(x1-x2);
+    y_dist = abs(y1-y2);
+    theta = atan(y_dist / x_dist);
+    
+    sd1 = h1 / 1.7 * cos(theta);
+    sd2 = h2 / 1.7 * cos(theta);
+    
+    if (ed > 0 && (sd1 + sd2) > ed)
+        return false;
+    
+    return true;
+}
 extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
 {
     std::cout<<"extern C void draw_detections_cv_v3 \n";
@@ -873,7 +893,8 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
         if (!show_img) return;
         static int frame_id = 0;
         frame_id++;
-
+        int xywh[num][4];
+        int ppl =0;
         for (i = 0; i < num; ++i) {
             char labelstr[4096] = { 0 };
             int class_id = -1;
@@ -930,21 +951,127 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                 int right = (b.x + b.w / 2.)*show_img->cols;
                 int top = (b.y - b.h / 2.)*show_img->rows;
                 int bot = (b.y + b.h / 2.)*show_img->rows;
-
+                
                 if (left < 0) left = 0;
                 if (right > show_img->cols - 1) right = show_img->cols - 1;
                 if (top < 0) top = 0;
                 if (bot > show_img->rows - 1) bot = show_img->rows - 1;
 
+                if(class_id == 2)
+                {
+                    xywh[ppl][0] = b.x;
+                    xywh[ppl][1] = b.y + b.h/2;
+                    xywh[ppl][2] = b.w;
+                    xywh[ppl][3] = b.h;
+                    ppl++;
+                }
+            }
+        }
+        bool sd_main[ppl];
+        for(int j=0; j<ppl; j++)
+        {
+            bool truth = true;
+            for(int k=0; k<ppl; k++)
+            {
+                bool sd = check(xwyh[j][0], xwyh[k][0], xwyh[j][1], xwyh[k][1], xwyh[j][2], xwyh[k][3], xwyh[j][3], xwyh[k][3]); //x1, x2, y1, y2, w1, w2, h1, h2
+                cout<<j<<" -> "<<k<<" = "<<sd<<"\n";
+                if(!sd)
+                {
+                    truth = false;
+                    break;
+                }
+            }
+            sd_main[j] = truth;
+        }
                 //int b_x_center = (left + right) / 2;
                 //int b_y_center = (top + bot) / 2;
                 //int b_width = right - left;
                 //int b_height = bot - top;
                 //sprintf(labelstr, "%d x %d - w: %d, h: %d", b_x_center, b_y_center, b_width, b_height);
+        int counter =0;
+        for (i = 0; i < num; ++i) {
+            char labelstr[4096] = { 0 };
+            int class_id = -1;
+            for (j = 0; j < classes; ++j) {
+                int show = strncmp(names[j], "dont_show", 9);
+                if (dets[i].prob[j] > thresh && show) {
+                    if (class_id < 0) {
+                        strcat(labelstr, names[j]);
+                        class_id = j;
+                        char buff[10];
+                        sprintf(buff, " (%2.0f%%)", dets[i].prob[j] * 100);
+                        strcat(labelstr, buff);
+                        printf("%s: %.0f%% ", names[j], dets[i].prob[j] * 100);
+                    }
+                    else {
+                        strcat(labelstr, ", ");
+                        strcat(labelstr, names[j]);
+                        printf(", %s: %.0f%% ", names[j], dets[i].prob[j] * 100);
+                    }
+                }
+            }
+            if (class_id >= 0) {
+                int width = std::max(1.0f, show_img->rows * .002f);
 
+                //if(0){
+                //width = pow(prob, 1./2.)*10+1;
+                //alphabet = 0;
+                //}
+
+                //printf("%d %s: %.0f%%\n", i, names[class_id], prob*100);
+                int offset = class_id * 123457 % classes;
+                float red = get_color(2, offset, classes);
+                float green = get_color(1, offset, classes);
+                float blue = get_color(0, offset, classes);
+                
+                if(class_id == 2)
+                {
+                    if(!sd_main[counter])
+                    {
+                        red = 1;
+                        green =0;
+                        blue =0;
+                        label_str = "No SD"
+                    } else
+                    {
+                        label_str = "SD"
+                        red = 0;
+                        green = 1;
+                        blue =0;
+                    }
+                    counter++;
+                }
+                float rgb[3];
+
+                //width = prob*20+2;
+
+                rgb[0] = red;
+                rgb[1] = green;
+                rgb[2] = blue;
+                box b = dets[i].bbox;
+                if (std::isnan(b.w) || std::isinf(b.w)) b.w = 0.5;
+                if (std::isnan(b.h) || std::isinf(b.h)) b.h = 0.5;
+                if (std::isnan(b.x) || std::isinf(b.x)) b.x = 0.5;
+                if (std::isnan(b.y) || std::isinf(b.y)) b.y = 0.5;
+                b.w = (b.w < 1) ? b.w : 1;
+                b.h = (b.h < 1) ? b.h : 1;
+                b.x = (b.x < 1) ? b.x : 1;
+                b.y = (b.y < 1) ? b.y : 1;
+                //printf("%f %f %f %f\n", b.x, b.y, b.w, b.h);
+
+                int left = (b.x - b.w / 2.)*show_img->cols;
+                int right = (b.x + b.w / 2.)*show_img->cols;
+                int top = (b.y - b.h / 2.)*show_img->rows;
+                int bot = (b.y + b.h / 2.)*show_img->rows;
+                
+                if (left < 0) left = 0;
+                if (right > show_img->cols - 1) right = show_img->cols - 1;
+                if (top < 0) top = 0;
+                if (bot > show_img->rows - 1) bot = show_img->rows - 1;
                 float const font_size = show_img->rows / 1000.F;
                 cv::Size const text_size = cv::getTextSize(labelstr, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, 1, 0);
                 cv::Point pt1, pt2, pt_text, pt_text_bg1, pt_text_bg2;
+                
                 pt1.x = left;
                 pt1.y = top;
                 pt2.x = right;
