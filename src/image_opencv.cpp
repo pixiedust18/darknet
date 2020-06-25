@@ -1011,8 +1011,11 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                 std::cout<<dets[i].prob[j]<<" "<<thresh<<" "<<show<<"\n";
 
                 if (dets[i].prob[j] > thresh && show) {
+                    std::cout<<"IN IF1\n";
                     if (class_id < 0) {
+                        std::cout<<"IN IF2\n";
                         strcat(labelstr, names[j]);
+                        std::cout<<"IN IF2 a\n";
                         class_id = j;
                         char buff[10];
                         std::cout<<dets[i].prob[j];
