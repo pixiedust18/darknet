@@ -1007,8 +1007,9 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
             int class_id = -1;
             std::cout<<classes<<"\n";
             for (j = 0; j < classes; ++j) {
-                std::cout<<dets[i].prob[j]<<" "<<thresh<<" "<<show<<"\n";
                 int show = strncmp(names[j], "dont_show", 9);
+                std::cout<<dets[i].prob[j]<<" "<<thresh<<" "<<show<<"\n";
+
                 if (dets[i].prob[j] > thresh && show) {
                     if (class_id < 0) {
                         strcat(labelstr, names[j]);
