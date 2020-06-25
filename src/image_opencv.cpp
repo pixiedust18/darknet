@@ -1002,6 +1002,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
         {
             char *labelstr = "";
             int class_id = -1;
+            std::cout<<classes<<"\n;
             for (j = 0; j < classes; ++j) {
                 int show = strncmp(names[j], "dont_show", 9);
                 if (dets[i].prob[j] > thresh && show) {
@@ -1009,20 +1010,22 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                         strcat(labelstr, names[j]);
                         class_id = j;
                         char buff[10];
-                        sprintf(buff, " (%2.0f%%)", dets[i].prob[j] * 100);
+                        std::cout<<dets[i].prob[j];
+                        printf(buff, " (%2.0f%%)", dets[i].prob[j] * 100);
                         strcat(labelstr, buff);
                         printf("%s: %.0f%% ", names[j], dets[i].prob[j] * 100);
                     }
                     else {
                         strcat(labelstr, ", ");
                         strcat(labelstr, names[j]);
+                        std::cout<<labelstr<<"\n";
                         printf(", %s: %.0f%% ", names[j], dets[i].prob[j] * 100);
                     }
                 }
             }
             if (class_id >= 0) {
                 int width = std::max(1.0f, show_img->rows * .002f);
-
+                std::cout<<"IN IF\n";
                 //if(0){
                 //width = pow(prob, 1./2.)*10+1;
                 //alphabet = 0;
