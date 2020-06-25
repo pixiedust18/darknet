@@ -976,20 +976,20 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
         }
         std::cout<<ppl<<std::endl;
         bool sd_main[ppl];
-        for(int j=0; j<ppl; j++)
+        for(int l=0; l<ppl; l++)
         {
             bool truth = true;
             for(int k=0; k<ppl; k++)
             {
-                bool sd = check(xywh[j][0], xywh[k][0], xywh[j][1], xywh[k][1], xywh[j][2], xywh[k][3], xywh[j][3], xywh[k][3]); //x1, x2, y1, y2, w1, w2, h1, h2
-                std::cout<<j<<" -> "<<k<<" = "<<sd<<"\n";
+                bool sd = check(xywh[l][0], xywh[k][0], xywh[l][1], xywh[k][1], xywh[l][2], xywh[k][3], xywh[l][3], xywh[k][3]); //x1, x2, y1, y2, w1, w2, h1, h2
+                std::cout<<l<<" -> "<<k<<" = "<<sd<<"\n";
                 if(!sd)
                 {
                     truth = false;
                     break;
                 }
             }
-            sd_main[j] = truth;
+            sd_main[l] = truth;
         }
         std::cout<<"out of loop \n";
                 //int b_x_center = (left + right) / 2;
