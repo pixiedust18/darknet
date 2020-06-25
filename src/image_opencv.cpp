@@ -1002,7 +1002,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
         {
             char *labelstr = "";
             int class_id = -1;
-            std::cout<<classes<<"\n;
+            std::cout<<classes<<"\n";
             for (j = 0; j < classes; ++j) {
                 int show = strncmp(names[j], "dont_show", 9);
                 if (dets[i].prob[j] > thresh && show) {
