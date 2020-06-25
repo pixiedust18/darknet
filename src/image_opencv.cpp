@@ -1003,7 +1003,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
         int counter =0;
         for (i = 0; i < num; ++i) 
         {
-            char *labelstr = "";
+            char labelstr[4096] = {0};
             int class_id = -1;
             std::cout<<classes<<"\n";
             for (j = 0; j < classes; ++j) {
@@ -1053,10 +1053,13 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                         red = 1;
                         green =0;
                         blue =0;
-                        labelstr = "No SD";
+                      
+                        string s = "No SD";
+                        strcpy(labelstr, s.c_str());
                     } else
                     {
-                        labelstr = "SD";
+                        string s = "SD";
+                        strcpy(labelstr, s.c_str());
                         red = 0;
                         green = 1;
                         blue =0;
