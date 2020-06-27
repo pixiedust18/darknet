@@ -562,10 +562,17 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
 
                 SD = math.sqrt((x1 - x2)*(x1 - x2) + (y1 - y2) * (y1 - y2) + (v1 - v2) * (v1 - v2))
                 print("Calibrated at ", SD)
-                io.imshow(image)
+                x1 = int(x1)
+                y1 = int(y1)
+                w1 = int(w1)
+                h1 = int(h1)
+                x2 = int(x2)
+                y2 = int(y2)
+                w2 = int(w2)
+                h2 = int(h2)
                 cv2.rectangle(image, (x1, y1), (x1 + w1, y1 + h1), (150, 150, 0), 2)
                 cv2.rectangle(image, (x2, y2), (x2 + w2, y2 + h2), (150, 150, 0), 2)
-                
+                io.imshow(image)
                 cv2.imwrite('result.jpg', image)
                 cv2_imshow(image)
                 
