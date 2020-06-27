@@ -1003,7 +1003,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         }
         vsd1cos = h1 * cos(theta) / 0.8;
         float sd = sqrt(vsd1sin * vsd1sin + vsd1cos * vsd1cos);
-        float ed = sqrt((x1-x2)*(x1-x2) + (v1-v2)*(v1-v2));
+        float ed = sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (v1-v2)*(v1-v2));
 
         if(ed>0 && ed<sd)
             return false;
