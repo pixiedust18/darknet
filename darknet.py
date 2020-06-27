@@ -570,14 +570,18 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 y2 = int(y2)
                 w2 = int(w2)
                 h2 = int(h2)
-                cv2.rectangle(image, (x1, y1), (x1 + w1, y1 + h1), (150, 150, 0), 2)
-                cv2.rectangle(image, (x2, y2), (x2 + w2, y2 + h2), (150, 150, 0), 2)
+                #cv2.rectangle(image, (x1, y1), (x1 + w1, y1 + h1), (150, 150, 0), 2)
+                #cv2.rectangle(image, (x2, y2), (x2 + w2, y2 + h2), (150, 150, 0), 2)
+                cv.circle(img,(x1,y1), 5, (0,0,255), -1)
+                cv.circle(img,(x2+w2,y2), 5, (0,0,255), -1)
+
+
                 io.imshow(image)
                 cv2.imwrite('result.jpg', image)
                 cv2_imshow(image)
-                
+                ref_cords = [(x1, y1), (x2, y2)]
                 io.show()
-                return SD
+                return ref_cords
             
             sd_main = []
             i=0
