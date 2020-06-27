@@ -192,7 +192,7 @@ def YOLO(sd = 0, video_path = '/content/mask_footage.mp4', configPath = "cfg/cus
     darknet_image = darknet.make_image(darknet.network_width(netMain),
                                     darknet.network_height(netMain),3)
     while True:
-        try:
+        #try:
             prev_time = time.time()
             ret, frame_read = cap.read()
             frame_rgb = cv2.cvtColor(frame_read, cv2.COLOR_BGR2RGB)
@@ -212,8 +212,8 @@ def YOLO(sd = 0, video_path = '/content/mask_footage.mp4', configPath = "cfg/cus
             io.imshow(image)
             io.show()
             cv2.waitKey(3)
-        except:
-            break;
+        #except:
+            #break;
       
     cap.release()
     out.release()
