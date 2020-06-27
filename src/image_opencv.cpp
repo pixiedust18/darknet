@@ -992,7 +992,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         float x_dist = abs(x1 - x2);
         float y_dist = abs(v1 - v2);
         float theta = atan(y_dist / x_dist);
-        
+        float vsd1sin, vsd1cos;
         if ((v2 - v1) > 0)
         {
             vsd1sin = (F * (u1 + sd * sin(theta))) / (u1 + sd * sin(theta) + F) ;
