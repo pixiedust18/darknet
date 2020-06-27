@@ -964,7 +964,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
     // ====================================================================
     // Draw Detection
     // ====================================================================bool
-    float F = 1.13 / 1000;
+    float F = 4.15 / 1000;
     float sd = 1.8;
     bool check(int x1, int x2, int y1, int y2, int w1, int w2, int h1, int h2)
     {
