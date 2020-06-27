@@ -62,7 +62,7 @@ def cvDrawBoxes(detections, img):
             float(x), float(y), float(w), float(h))
         
         coord = [x-w/2, y-h/2, w, h]
-        label = detection[0].decode()
+        label = detection[0]
         
         if (label=='Person'):
             print(i)
