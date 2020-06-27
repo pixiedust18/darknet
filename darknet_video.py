@@ -63,8 +63,12 @@ def cvDrawBoxes(detections, img):
             float(x), float(y), float(w), float(h))
         
         coord = [x-w/2, y-h/2, w, h]
-        label = detection[0]
         
+        if(type(detection[0]) == 'str')
+            label = detection[0]
+        else:
+            label = detection[0].decode()
+            
         if (label=='Person'):
             print(i)
             xywh.append(coord)
@@ -74,8 +78,10 @@ def cvDrawBoxes(detections, img):
                
         if (label=='Mask'):
             boxColor = green
+            x = int(x)
             cv2.putText(img, "Mask", (x,y - 10), font, font_scale, green, thickness)
         elif (label=='No_mask'):
+            x = int(x)
             boxColor = red
             cv2.putText(img, "No Mask", (x,y - 10), font, font_scale, red, thickness)
         elif (label=='Person'):
