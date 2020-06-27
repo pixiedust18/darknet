@@ -79,9 +79,11 @@ def cvDrawBoxes(detections, img):
         if (label=='Mask'):
             boxColor = green
             x = int(x)
+            y = int(y)
             cv2.putText(img, "Mask", (x,y - 10), font, font_scale, green, thickness)
         elif (label=='No_mask'):
             x = int(x)
+            y = int(y)
             boxColor = red
             cv2.putText(img, "No Mask", (x,y - 10), font, font_scale, red, thickness)
         elif (label=='Person'):
