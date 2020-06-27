@@ -30,6 +30,7 @@ Windows Python 2.7 version: https://github.com/AlexeyAB/darknet/blob/fc496d52bf2
 from ctypes import *
 import math
 import random
+import darknet
 import os
 import numpy as np
 from skimage import io, draw
