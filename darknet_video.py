@@ -30,6 +30,7 @@ def check(p1, p2, w1, w2, h1, h2):
     v2 = f * (1.6 - h2) / 1.6
     
     ed = math.sqrt((x1 - x2)*(x1 - x2) + (y1-y2) * (y1 - y2) + (v1-v2) * (v1 - v2))
+    print(ed)
     if (ed>0 and ed<SD):
         return false
     return True
