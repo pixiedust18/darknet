@@ -19,7 +19,7 @@ def convertBack(x, y, w, h):
     ymin = int(round(y - (h / 2)))
     ymax = int(round(y + (h / 2)))
     return xmin, ymin, xmax, ymax
-
+f = 0.00415
 import math
 def check(p1, p2, w1, w2, h1, h2):
     x1, y1 = p1[0], p1[1]
@@ -137,13 +137,14 @@ metaMain = None
 altNames = None
 
 
-def YOLO(sd = 0, video_path = '/content/mask_footage.mp4', configPath = "cfg/custom-yolov4-detector.cfg", weightPath = "/content/custom-yolov4-detector_best.weights", metaPath = "data/obj.data"):
+def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPath = "cfg/custom-yolov4-detector.cfg", weightPath = "/content/custom-yolov4-detector_best.weights", metaPath = "data/obj.data"):
 
     global metaMain, netMain, altNames
     '''configPath = "./cfg/yolov4.cfg"
     weightPath = "./yolov4.weights"
     metaPath = "./cfg/coco.data"'''
     SD = sd
+    f = F
     if not os.path.exists(configPath):
         raise ValueError("Invalid config path `" +
                          os.path.abspath(configPath)+"`")
@@ -219,4 +220,4 @@ def YOLO(sd = 0, video_path = '/content/mask_footage.mp4', configPath = "cfg/cus
     out.release()
     
 if __name__ == "__main__":
-    YOLO(sd = 0 , video_path = '/content/mask_footage.mp4', configPath = "cfg/custom-yolov4-detector.cfg", weightPath = "/content/custom-yolov4-detector_best.weights", metaPath = "data/obj.data")
+    YOLO(F = 0.00415, sd = 0 , video_path = '/content/mask_footage.mp4', configPath = "cfg/custom-yolov4-detector.cfg", weightPath = "/content/custom-yolov4-detector_best.weights", metaPath = "data/obj.data")
