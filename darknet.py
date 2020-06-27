@@ -335,12 +335,13 @@ altNames = None
     return True'''
 
 import math
-def check(p1, p2, w1, w2, h1, h2):
+
+def check(SD, p1, p2, w1, w2, h1, h2, f = 0.00415):
     x1, y1 = p1[0], p1[1]
     x2, y2 = p2[0], p2[1]
     if(x1==x2 and y1==y2):
         return True
-    coords = [(x1, y1), (x2, y2)]
+    '''coords = [(x1, y1), (x2, y2)]
        
     ed = distance.euclidean([x1, y1], [x2, y2])
     print(ed)
@@ -353,8 +354,13 @@ def check(p1, p2, w1, w2, h1, h2):
     sd2 = h2 / 1.6 * math.cos(theta)
     
     if (ed > 0 and (sd1 + sd2) > ed):
-        return False
+        return False'''
+    v1 = f * (1.6 - h1) / 1.6
+    v2 = f * (1.6 - h2) / 1.6
     
+    ed = math.sqrt((x1 - x2)*(x1 - x2) + (y1-y2) * (y1 - y2) + (v1-v2) * (v1 - v2))
+    if (ed>0 and ed<SD):
+        return false
     return True
     '''param = (x1+x2)/2
 
@@ -364,7 +370,7 @@ def check(p1, p2, w1, w2, h1, h2):
     return True'''
     
 
-def performDetect(imagePath="data/dog.jpg", thresh= 0.25, configPath = "./cfg/yolov4.cfg", weightPath = "yolov4.weights", metaPath= "./cfg/coco.data", showImage= True, makeImageOnly = False, initOnly= False):
+def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thresh= 0.25, configPath = "./cfg/yolov4.cfg", weightPath = "yolov4.weights", metaPath= "./cfg/coco.data", showImage= True, makeImageOnly = False, initOnly= False):
     """
     Convenience function to handle the detection and returns of objects.
 
@@ -465,6 +471,7 @@ def performDetect(imagePath="data/dog.jpg", thresh= 0.25, configPath = "./cfg/yo
             wp = []
             hp = []
             i=0
+            SD = 0
             for detection in detections:
                 
                 label = detection[0]
@@ -540,6 +547,21 @@ def performDetect(imagePath="data/dog.jpg", thresh= 0.25, configPath = "./cfg/yo
             
             #correct_peeps = []
             #wrong_peeps = []
+            
+            if(calibrate == True):
+                x1, y1 = person_feet[0]
+                x2, y2 = person_feet[1]
+                w1  = wp[0]
+                w2  = wp[1]
+                h1 = hp[0]
+                h2 = hp[1]
+                v1 = f * (1.6 - h1) / 1.6
+                v2 = f * (1.6 - h2) / 1.6
+
+                SD = math.sqrt((x1 - x2)*(x1 - x2) + (y1 - y2) * (y1 - y2) + (v1 - v2) * (v1 - v2))
+                print("Calibrated at ", SD)
+                return SD
+            
             sd_main = []
             i=0
             j=0
@@ -547,7 +569,7 @@ def performDetect(imagePath="data/dog.jpg", thresh= 0.25, configPath = "./cfg/yo
                 truth = True
                 j=0
                 for mid2 in person_feet:
-                    sd = check(mid1, mid2, wp[i], wp[j], hp[i], hp[j])
+                    sd = check(mid1, mid2, wp[i], wp[j], hp[i], hp[j], f, f)
                     print(i, " -> ", j," = ", sd)
                     if(sd == False):
                         truth = False
@@ -592,6 +614,7 @@ def performDetect(imagePath="data/dog.jpg", thresh= 0.25, configPath = "./cfg/yo
             }
         #except Exception as e:
             #print("Unable to show image: "+str(e))
+    #return detections
     return detections
 
 def performBatchDetect(thresh= 0.25, configPath = "./cfg/yolov4.cfg", weightPath = "yolov4.weights", metaPath= "./cfg/coco.data", hier_thresh=.5, nms=.45, batch_size=3):
