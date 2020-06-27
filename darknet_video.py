@@ -64,7 +64,7 @@ def cvDrawBoxes(detections, img):
         
         coord = [x-w/2, y-h/2, w, h]
         
-        if(type(detection[0]) == 'str')
+        if(isinstance(detection[0], str)):
             label = detection[0]
         else:
             label = detection[0].decode()
