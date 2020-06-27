@@ -560,6 +560,12 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
 
                 SD = math.sqrt((x1 - x2)*(x1 - x2) + (y1 - y2) * (y1 - y2) + (v1 - v2) * (v1 - v2))
                 print("Calibrated at ", SD)
+                io.imshow(image)
+                
+                cv2.imwrite('result.jpg', image)
+                cv2_imshow(image)
+                
+                io.show()
                 return SD
             
             sd_main = []
