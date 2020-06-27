@@ -458,11 +458,12 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
         raise ValueError("Invalid image path `"+os.path.abspath(imagePath)+"`")
     # Do the detection
     #detections = detect(netMain, metaMain, imagePath, thresh)	# if is used cv2.imread(image)
-
+    
     detections = detect(netMain, metaMain, imagePath.encode("ascii"), thresh)
     if showImage:
         #try:            
             image = io.imread(imagePath)
+            image = cv2.resize(image, (darknet.network_width(netMain), darknet.network_height(netMain)), interpolation=cv2.INTER_LINEAR)
             print("*** "+str(len(detections))+" Results, color coded by confidence ***")
             imcaption = []
             face_mids = []
@@ -561,6 +562,8 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 SD = math.sqrt((x1 - x2)*(x1 - x2) + (y1 - y2) * (y1 - y2) + (v1 - v2) * (v1 - v2))
                 print("Calibrated at ", SD)
                 io.imshow(image)
+                cv2.rectangle(image, (x1, y1), (x1 + w1, y1 + h1), (150, 150, 0), 2)
+                cv2.rectangle(image, (x2, y2), (x2 + w2, y2 + h2), (150, 150, 0), 2)
                 
                 cv2.imwrite('result.jpg', image)
                 cv2_imshow(image)
