@@ -11,6 +11,8 @@ import cv2
 from scipy.spatial import distance
 from google.colab.patches import cv2_imshow
 
+SD = 0
+
 def convertBack(x, y, w, h):
     xmin = int(round(x - (w / 2)))
     xmax = int(round(x + (w / 2)))
@@ -24,21 +26,12 @@ def check(p1, p2, w1, w2, h1, h2):
     x2, y2 = p2[0], p2[1]
     if(x1==x2 and y1==y2):
         return True
-    coords = [(x1, y1), (x2, y2)]
-       
-    ed = distance.euclidean([x1, y1], [x2, y2])
-    print(ed)
+    v1 = f * (1.6 - h1) / 1.6
+    v2 = f * (1.6 - h2) / 1.6
     
-    x_dist = abs(x1-x2)
-    y_dist = abs(y1-y2)
-    theta = math.atan(y_dist / x_dist)
-    
-    sd1 = h1 / 1.6 * math.cos(theta)
-    sd2 = h2 / 1.6 * math.cos(theta)
-    
-    if (ed > 0 and (sd1 + sd2) > ed):
-        return False
-    
+    ed = math.sqrt((x1 - x2)*(x1 - x2) + (y1-y2) * (y1 - y2) + (v1-v2) * (v1 - v2))
+    if (ed>0 and ed<SD):
+        return false
     return True
     '''param = (x1+x2)/2
     if(social_distance > 0 and social_distance < 0.25 * param):
@@ -144,12 +137,13 @@ metaMain = None
 altNames = None
 
 
-def YOLO(video_path = '/content/mask_footage.mp4', configPath = "cfg/custom-yolov4-detector.cfg", weightPath = "/content/custom-yolov4-detector_best.weights", metaPath = "data/obj.data"):
+def YOLO(sd = 0, video_path = '/content/mask_footage.mp4', configPath = "cfg/custom-yolov4-detector.cfg", weightPath = "/content/custom-yolov4-detector_best.weights", metaPath = "data/obj.data"):
 
     global metaMain, netMain, altNames
     '''configPath = "./cfg/yolov4.cfg"
     weightPath = "./yolov4.weights"
     metaPath = "./cfg/coco.data"'''
+    SD = sd
     if not os.path.exists(configPath):
         raise ValueError("Invalid config path `" +
                          os.path.abspath(configPath)+"`")
@@ -225,4 +219,4 @@ def YOLO(video_path = '/content/mask_footage.mp4', configPath = "cfg/custom-yolo
     out.release()
     
 if __name__ == "__main__":
-    YOLO(video_path = '/content/mask_footage.mp4', configPath = "cfg/custom-yolov4-detector.cfg", weightPath = "/content/custom-yolov4-detector_best.weights", metaPath = "data/obj.data")
+    YOLO(sd = 0 , video_path = '/content/mask_footage.mp4', configPath = "cfg/custom-yolov4-detector.cfg", weightPath = "/content/custom-yolov4-detector_best.weights", metaPath = "data/obj.data")
