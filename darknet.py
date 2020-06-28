@@ -572,8 +572,8 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 h2 = int(h2)
                 #cv2.rectangle(image, (x1, y1), (x1 + w1, y1 + h1), (150, 150, 0), 2)
                 #cv2.rectangle(image, (x2, y2), (x2 + w2, y2 + h2), (150, 150, 0), 2)
-                cv2.circle(image,(x1,y1), 5, (0,0,255), -1)
-                cv2.circle(image,(x2+w2,y2), 5, (0,0,255), -1)
+                cv2.circle(image,(x1,y1), 25, (0,0,255), -1)
+                cv2.circle(image,(x2+w2,y2), 25, (0,0,255), -1)
 
 
                 io.imshow(image)
