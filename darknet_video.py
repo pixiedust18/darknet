@@ -25,6 +25,7 @@ def check(p1, p2, w1, w2, h1, h2):
     x1, y1 = p1[0], p1[1]
     x2, y2 = p2[0], p2[1]
     if(x1==x2 and y1==y2):
+        print("eq")
         return True
     v1 = f * (h1 - 1.6) / h1
     v2 = f * (h2 - 1.6) / h2
