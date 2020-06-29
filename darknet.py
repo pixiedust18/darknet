@@ -356,8 +356,8 @@ def check(SD, p1, p2, w1, w2, h1, h2, f = 0.00415):
     
     if (ed > 0 and (sd1 + sd2) > ed):
         return False'''
-    v1 = f * (- 1.6 + h1) / h1
-    v2 = f * (- 1.6 + h2) / h2
+    v1 = 1.6 * f / (1.6 + h1)
+    v2 = 1.6 * f / (1.6 + h2)
     
     ed = math.sqrt((x1 - x2)*(x1 - x2) + (y1-y2) * (y1 - y2) + (v1-v2) * (v1 - v2))
     if (ed>0 and ed<SD):
@@ -557,8 +557,8 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 w2  = wp[1]
                 h1 = hp[0]
                 h2 = hp[1]
-                v1 = f * (- 1.6 + h1) / h1
-                v2 = f * (- 1.6 + h2) / h2
+                v1 = 1.6 * f / (1.6 + h1)
+                v2 = 1.6 * f / (1.6 + h2)
 
                 SD = math.sqrt((x1 - x2)*(x1 - x2) + (y1 - y2) * (y1 - y2) + (v1 - v2) * (v1 - v2))
                 print("Calibrated at ", SD)
