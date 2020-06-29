@@ -474,6 +474,8 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
             hp = []
             i=0
             SD = 0
+            sensor_w = 4.8
+            f = f *1000 * darknet.network_width(netMain) / sensor_w
             for detection in detections:
                 
                 label = detection[0]
