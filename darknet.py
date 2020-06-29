@@ -359,7 +359,7 @@ def check(SD, p1, p2, w1, w2, h1, h2, f = 0.00415):
     v1 = 1.6 * f / (1.6 + h1)
     v2 = 1.6 * f / (1.6 + h2)
     
-    ed = math.sqrt((x1 - x2)*(x1 - x2) + (y1-y2) * (y1 - y2) + (v1-v2) * (v1 - v2))
+    ed = math.sqrt((x1 - x2)*(x1 - x2) + (v1-v2) * (v1 - v2))
     if (ed>0 and ed<SD):
         return false
     return True
@@ -560,7 +560,7 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 v1 = 1.6 * f / (1.6 + h1)
                 v2 = 1.6 * f / (1.6 + h2)
 
-                SD = math.sqrt((x1 - x2)*(x1 - x2) + (y1 - y2) * (y1 - y2) + (v1 - v2) * (v1 - v2))
+                SD = math.sqrt((x1 - x2)*(x1 - x2) + (v1 - v2) * (v1 - v2))
                 print("Calibrated at ", SD)
                 x1 = int(x1)
                 y1 = int(y1)
@@ -573,7 +573,7 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 #cv2.rectangle(image, (x1, y1), (x1 + w1, y1 + h1), (150, 150, 0), 2)
                 #cv2.rectangle(image, (x2, y2), (x2 + w2, y2 + h2), (150, 150, 0), 2)
                 cv2.circle(image,(x1,y1), 25, (0,0,255), -1)
-                cv2.circle(image,(x2+w2,y2), 25, (0,0,255), -1)
+                cv2.circle(image,(x2,y2), 25, (0,0,255), -1)
 
 
                 io.imshow(image)
@@ -581,7 +581,7 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 cv2_imshow(image)
                 ref_cords = [(x1, y1), (x2, y2)]
                 io.show()
-                return ref_cords
+                return SD, ref_cords
             
             sd_main = []
             i=0
