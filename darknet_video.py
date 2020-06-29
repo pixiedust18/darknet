@@ -155,6 +155,7 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
     weightPath = "./yolov4.weights"
     metaPath = "./cfg/coco.data"'''
     SD = sd
+    sensor_w = 4.8
     f = F *1000 * darknet.network_width(netMain) / sensor_w
 
     if not os.path.exists(configPath):
