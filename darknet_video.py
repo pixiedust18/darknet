@@ -35,7 +35,8 @@ def check(p1, p2, w1, w2, h1, h2, SD, f):
     real_dist = sensor_w * abs(x1-x2) / sensor_w_px
     x1_ = 0
     x2_ = real_dist
-    ed = math.sqrt((x1_ - x2_)*(x1_ - x2_) + (v1-v2) * (v1 - v2))    print(ed)
+    ed = math.sqrt((x1_ - x2_)*(x1_ - x2_) + (v1-v2) * (v1 - v2))    
+    print(ed)
     if (ed>0 and ed<SD):
         return False
     return True
