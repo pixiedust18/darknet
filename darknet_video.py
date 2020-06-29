@@ -21,7 +21,7 @@ def convertBack(x, y, w, h):
     return xmin, ymin, xmax, ymax
 f = 0.00415
 import math
-def check(p1, p2, w1, w2, h1, h2, SD):
+def check(p1, p2, w1, w2, h1, h2, SD, f):
     x1, y1 = p1[0], p1[1]
     x2, y2 = p2[0], p2[1]
     if(x1==x2 and y1==y2):
@@ -41,7 +41,7 @@ def check(p1, p2, w1, w2, h1, h2, SD):
     
     return True'''
 
-def cvDrawBoxes(detections, img, SD):
+def cvDrawBoxes(detections, img, SD, f):
     print("SD: ", SD)
     face_mids = []
     person_feet = []
@@ -175,8 +175,7 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
     if altNames is None:
         try:
             print("DF")
-            f = f *1000 * 512 / sensor_w
-            print(f, SD)
+            
             with open(metaPath) as metaFH:
                 metaContents = metaFH.read()
                 import re
@@ -205,6 +204,9 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
         (darknet.network_width(netMain), darknet.network_height(netMain)))
     print("Starting the YOLO loop...")
 
+    w = darknet.network_width(netMain)
+    f = f *1000 * 512 / sensor_w
+    print(f, SD)
     # Create an image we reuse for each detect
     darknet_image = darknet.make_image(darknet.network_width(netMain),
                                     darknet.network_height(netMain),3)
@@ -222,7 +224,7 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
            
         
             detections = darknet.detect_image(netMain, metaMain, darknet_image, thresh=0.25)
-            image = cvDrawBoxes(detections, frame_resized, SD)
+            image = cvDrawBoxes(detections, frame_resized, SD, f)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             out.write(image)
             print(1/(time.time()-prev_time))
