@@ -101,7 +101,7 @@ def cvDrawBoxes(detections, img, SD, f):
         truth = True
         j=0
         for mid2 in person_feet:
-            sd = check(mid1, mid2, wp[i], wp[j], hp[i], hp[j], SD)
+            sd = check(mid1, mid2, wp[i], wp[j], hp[i], hp[j], SD, f)
             print(i, " -> ", j," = ", sd)
             if(sd == False):
                 truth = False
@@ -211,7 +211,7 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
     darknet_image = darknet.make_image(darknet.network_width(netMain),
                                     darknet.network_height(netMain),3)
     while True:
-        #try:
+        try:
             prev_time = time.time()
             ret, frame_read = cap.read()
             frame_rgb = cv2.cvtColor(frame_read, cv2.COLOR_BGR2RGB)
@@ -231,7 +231,7 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
             io.imshow(image)
             io.show()
             cv2.waitKey(3)
-        #except:
+        except:
             break;
       
     cap.release()
