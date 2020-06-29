@@ -27,11 +27,15 @@ def check(p1, p2, w1, w2, h1, h2, SD, f):
     if(x1==x2 and y1==y2):
         print("eq")
         return True
-    v1 = 1.6 * f / (1.6 + h1)
-    v2 = 1.6 * f / (1.6 + h2)
+    v1 = 1.6 * f / (h1)
+    v2 = 1.6 * f / (h2)
     print("v1, v2", v1, v2)
-    ed = math.sqrt((x1 - x2)*(x1 - x2) + (v1-v2) * (v1 - v2))
-    print(ed)
+    sensor_w, sensor_h = 4.8, 3.6
+    sensor_w_px, sensor_h_px = 3200, 2400
+    real_dist1 = sensor_w * abs(x1-x2) / sensor_w_px
+    x1_ = 0
+    x2_ = real_dist
+    ed = math.sqrt((x1_ - x2_)*(x1_ - x2_) + (v1-v2) * (v1 - v2))    print(ed)
     if (ed>0 and ed<SD):
         return False
     return True
