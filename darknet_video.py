@@ -176,7 +176,7 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
         try:
             print("DF")
             f = f *1000 * 512 / sensor_w
-
+            print(f, SD)
             with open(metaPath) as metaFH:
                 metaContents = metaFH.read()
                 import re
@@ -230,7 +230,7 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
             io.show()
             cv2.waitKey(3)
         #except:
-            #break;
+            break;
       
     cap.release()
     out.release()
