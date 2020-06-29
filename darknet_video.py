@@ -156,7 +156,7 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
     metaPath = "./cfg/coco.data"'''
     SD = sd
     sensor_w = 4.8
-    f = F *1000 * darknet.network_width(netMain) / sensor_w
+    f = F
 
     if not os.path.exists(configPath):
         raise ValueError("Invalid config path `" +
@@ -174,6 +174,9 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
         metaMain = darknet.load_meta(metaPath.encode("ascii"))
     if altNames is None:
         try:
+            print("DF")
+            f = f *1000 * 512 / sensor_w
+
             with open(metaPath) as metaFH:
                 metaContents = metaFH.read()
                 import re
