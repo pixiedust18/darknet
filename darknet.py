@@ -564,6 +564,7 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
 
                 SD = math.sqrt((x1 - x2)*(x1 - x2) + (v1 - v2) * (v1 - v2))
                 print("Calibrated at ", SD)
+                print(v1, v2)
                 x1 = int(x1)
                 y1 = int(y1)
                 w1 = int(w1)
