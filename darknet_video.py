@@ -27,10 +27,10 @@ def check(p1, p2, w1, w2, h1, h2):
     if(x1==x2 and y1==y2):
         print("eq")
         return True
-    v1 = f * (h1 - 1.6) / h1
-    v2 = f * (h2 - 1.6) / h2
+    v1 = 1.6 * f / (1.6 + h1)
+    v2 = 1.6 * f / (1.6 + h2)
     
-    ed = math.sqrt((x1 - x2)*(x1 - x2) + (y1-y2) * (y1 - y2) + (v1-v2) * (v1 - v2))
+    ed = math.sqrt((x1 - x2)*(x1 - x2) + (v1-v2) * (v1 - v2))
     print(ed)
     if (ed>0 and ed<SD):
         return False
