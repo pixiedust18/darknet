@@ -42,6 +42,7 @@ def check(p1, p2, w1, w2, h1, h2):
     return True'''
 
 def cvDrawBoxes(detections, img):
+    print("SD: ", SD)
     face_mids = []
     person_feet = []
     xywh = []
@@ -154,7 +155,8 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
     weightPath = "./yolov4.weights"
     metaPath = "./cfg/coco.data"'''
     SD = sd
-    f = F
+    f = F *1000 * darknet.network_width(netMain) / sensor_w
+
     if not os.path.exists(configPath):
         raise ValueError("Invalid config path `" +
                          os.path.abspath(configPath)+"`")
