@@ -566,7 +566,7 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 h2 = hp[1]
                 v1 = 1.6 * f / (h1)
                 v2 = 1.6 * f / (h2)
-                real_dist1 = sensor_w * abs(x1-x2) / sensor_w_px
+                real_dist = sensor_w * abs(x1-x2) / sensor_w_px
                 x1_ = 0
                 x2_ = real_dist
 
