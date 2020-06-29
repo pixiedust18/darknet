@@ -21,7 +21,7 @@ def convertBack(x, y, w, h):
     return xmin, ymin, xmax, ymax
 f = 0.00415
 import math
-def check(p1, p2, w1, w2, h1, h2):
+def check(p1, p2, w1, w2, h1, h2, SD):
     x1, y1 = p1[0], p1[1]
     x2, y2 = p2[0], p2[1]
     if(x1==x2 and y1==y2):
@@ -41,7 +41,7 @@ def check(p1, p2, w1, w2, h1, h2):
     
     return True'''
 
-def cvDrawBoxes(detections, img):
+def cvDrawBoxes(detections, img, SD):
     print("SD: ", SD)
     face_mids = []
     person_feet = []
@@ -101,7 +101,7 @@ def cvDrawBoxes(detections, img):
         truth = True
         j=0
         for mid2 in person_feet:
-            sd = check(mid1, mid2, wp[i], wp[j], hp[i], hp[j])
+            sd = check(mid1, mid2, wp[i], wp[j], hp[i], hp[j], SD)
             print(i, " -> ", j," = ", sd)
             if(sd == False):
                 truth = False
@@ -222,7 +222,7 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
            
         
             detections = darknet.detect_image(netMain, metaMain, darknet_image, thresh=0.25)
-            image = cvDrawBoxes(detections, frame_resized)
+            image = cvDrawBoxes(detections, frame_resized, SD)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             out.write(image)
             print(1/(time.time()-prev_time))
