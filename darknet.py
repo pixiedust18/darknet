@@ -537,9 +537,11 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 if (label=='Mask'):
                     boxColor = green
                     cv2.putText(image, "Mask", (x,y - 10), font, font_scale, green, thickness)
+                    cv2.rectangle(image, (x, y), (x + w, y + h), green, 2)
                 elif (label=='No_mask'):
                     boxColor = red
                     cv2.putText(image, "No Mask", (x,y - 10), font, font_scale, red, thickness)
+                    cv2.rectangle(image, (x, y), (x + w, y + h), red, 2)
                 elif (label=='Person'):
                     x_pmid = x + w/2
                     y_pmid = y + h
