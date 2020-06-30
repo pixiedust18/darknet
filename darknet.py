@@ -597,11 +597,12 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
             sd_main = []
             i=0
             j=0
+            print("Calibrated at ", SD)
             for mid1 in person_feet:
                 truth = True
                 j=0
                 for mid2 in person_feet:
-                    sd = check(SD, mid1, mid2, wp[i], wp[j], hp[i], hp[j], f, f)
+                    sd = check(SD, mid1, mid2, wp[i], wp[j], hp[i], hp[j], f)
                     print(i, " -> ", j," = ", sd)
                     if(sd == False):
                         truth = False
