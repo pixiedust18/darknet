@@ -365,7 +365,7 @@ def check(SD, p1, p2, w1, w2, h1, h2, f = 0.00415):
     x2_ = real_dist
     ed = math.sqrt((x1_ - x2_)*(x1_ - x2_) + (v1-v2) * (v1 - v2))
     if (ed>0 and ed<SD):
-        return false
+        return False
     return True
     '''param = (x1+x2)/2
 
