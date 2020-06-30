@@ -617,25 +617,27 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 
                 if (sd_main[i] == True):
                     print("SD")
+                    boxColor = (150, 150, 0)
                     cv2.rectangle(image, (x, y), (x + w, y + h), (150, 150, 0), 2)
                     cv2.putText(image, str(i)+" SD", (x,y - 10), font, font_scale, (150, 150, 0), thickness)
                 else:  
                     print("NO SD")
+                    boxColor = (150, 150, 0)
                     cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 150), 2)
                     cv2.putText(image, str(i)+" No SD", (x,y - 10), font, font_scale, (0, 0, 150), thickness)
                 i+=1
 
-            '''draw.set_color(image, (rr, cc), boxColor, alpha= 0.8)
+            draw.set_color(image, (rr, cc), boxColor, alpha= 0.8)
             draw.set_color(image, (rr2, cc2), boxColor, alpha= 0.8)
             draw.set_color(image, (rr3, cc3), boxColor, alpha= 0.8)
             draw.set_color(image, (rr4, cc4), boxColor, alpha= 0.8)
-            draw.set_color(image, (rr5, cc5), boxColor, alpha= 0.8)'''
+            draw.set_color(image, (rr5, cc5), boxColor, alpha= 0.8)
 
             if not makeImageOnly:
                 io.imshow(image)
                 
                 cv2.imwrite('result.jpg', image)
-                cv2_imshow(image)
+                #cv2_imshow(image)
                 
                 io.show()
                 
