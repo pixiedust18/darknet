@@ -536,12 +536,12 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
 
                 if (label=='Mask'):
                     boxColor = green
-                    cv2.putText(image, "Mask", (x,y - 10), font, font_scale, green, thickness)
-                    cv2.rectangle(image, (x, y), (x + w, y + h), green, 2)
+                    #cv2.putText(image, "Mask", (x,y - 10), font, font_scale, green, thickness)
+                    #cv2.rectangle(image, (x, y), (x + w, y + h), green, 2)
                 elif (label=='No_mask'):
                     boxColor = red
-                    cv2.putText(image, "No Mask", (x,y - 10), font, font_scale, red, thickness)
-                    cv2.rectangle(image, (x, y), (x + w, y + h), red, 2)
+                    #cv2.putText(image, "No Mask", (x,y - 10), font, font_scale, red, thickness)
+                    #cv2.rectangle(image, (x, y), (x + w, y + h), red, 2)
                 elif (label=='Person'):
                     x_pmid = x + w/2
                     y_pmid = y + h
@@ -625,7 +625,7 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 else:  
                     print("NO SD")
                     boxColor = (0, 0, 150)
-                    cv2.rectangle(image, (int(x), int(y)), (x + w, y+h ), (0, 0, 150), 2)
+                    cv2.rectangle(image, (int(x), int(y)), (x + w, y+h ), (150,0,0), 2)
                     cv2.putText(image, str(i)+" No SD", (x,y - 10), font, font_scale, (0, 0, 150), thickness)
                 i+=1
 
