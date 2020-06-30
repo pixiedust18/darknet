@@ -477,7 +477,7 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
             wp = []
             hp = []
             i=0
-            SD = 0
+            #SD = 0
             sensor_w, sensor_h = 4.8, 3.6
             sensor_w_px, sensor_h_px = 3200, 2400
             f = f *1000 * darknet.network_width(netMain) / sensor_w
@@ -592,7 +592,7 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 cv2_imshow(image)
                 ref_cords = [(x1, y1), (x2, y2)]
                 io.show()
-                return SD, ref_cords
+                return SD
             
             sd_main = []
             i=0
@@ -618,12 +618,12 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 if (sd_main[i] == True):
                     print("SD")
                     boxColor = (150, 150, 0)
-                    cv2.rectangle(image, (x, y), (x + w, y + h), (150, 150, 0), 2)
+                    cv2.rectangle(image, (int(x - w/2), int(y - h)), (x, int(y+h/2)), (150, 150, 0), 2)
                     cv2.putText(image, str(i)+" SD", (x,y - 10), font, font_scale, (150, 150, 0), thickness)
                 else:  
                     print("NO SD")
-                    boxColor = (150, 150, 0)
-                    cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 150), 2)
+                    boxColor = (0, 0, 150)
+                    cv2.rectangle(image, (int(x - w/2), int(y - h)), (x, int(y+h/2)), (0, 0, 150), 2)
                     cv2.putText(image, str(i)+" No SD", (x,y - 10), font, font_scale, (0, 0, 150), thickness)
                 i+=1
 
