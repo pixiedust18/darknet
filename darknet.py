@@ -375,7 +375,7 @@ def check(SD, p1, p2, w1, w2, h1, h2, f = 0.00415):
     return True'''
     
 
-def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thresh= 0.25, configPath = "./cfg/yolov4.cfg", weightPath = "yolov4.weights", metaPath= "./cfg/coco.data", showImage= True, makeImageOnly = False, initOnly= False):
+def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thresh= 0.25, configPath = "./cfg/yolov4.cfg", weightPath = "yolov4.weights", metaPath= "./cfg/coco.data", showImage= True, makeImageOnly = False, initOnly= False, SD = 0):
     """
     Convenience function to handle the detection and returns of objects.
 
@@ -601,7 +601,7 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 truth = True
                 j=0
                 for mid2 in person_feet:
-                    sd = check(mid1, mid2, wp[i], wp[j], hp[i], hp[j], f, f)
+                    sd = check(SD, mid1, mid2, wp[i], wp[j], hp[i], hp[j], f, f)
                     print(i, " -> ", j," = ", sd)
                     if(sd == False):
                         truth = False
