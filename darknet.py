@@ -468,7 +468,7 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
     if showImage:
         #try:            
             image = io.imread(imagePath)
-            image = cv2.resize(image, (darknet.network_width(netMain), darknet.network_height(netMain)), interpolation=cv2.INTER_LINEAR)
+            #image = cv2.resize(image, (darknet.network_width(netMain), darknet.network_height(netMain)), interpolation=cv2.INTER_LINEAR)
             print("*** "+str(len(detections))+" Results, color coded by confidence ***")
             imcaption = []
             face_mids = []
