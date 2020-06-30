@@ -620,12 +620,12 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 if (sd_main[i] == True):
                     print("SD")
                     boxColor = (150, 150, 0)
-                    cv2.rectangle(image, (int(x - w/2), int(y - h)), (x, int(y+h/2)), (150, 150, 0), 2)
+                    cv2.rectangle(image, (int(x), int(y)), (x + w, y+h ), (150, 150, 0), 2)
                     cv2.putText(image, str(i)+" SD", (x,y - 10), font, font_scale, (150, 150, 0), thickness)
                 else:  
                     print("NO SD")
                     boxColor = (0, 0, 150)
-                    cv2.rectangle(image, (int(x - w/2), int(y - h)), (x, int(y+h/2)), (0, 0, 150), 2)
+                    cv2.rectangle(image, (int(x), int(y)), (x + w, y+h ), (0, 0, 150), 2)
                     cv2.putText(image, str(i)+" No SD", (x,y - 10), font, font_scale, (0, 0, 150), thickness)
                 i+=1
 
