@@ -528,11 +528,11 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                 red = (255,0,0)
                 font=cv2.FONT_HERSHEY_COMPLEX
                 # Wiggle it around to make a 3px border
-               ''' rr, cc = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] for x in boundingBox], shape= shape)
+                rr, cc = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] for x in boundingBox], shape= shape)
                 rr2, cc2 = draw.polygon_perimeter([x[1] + 1 for x in boundingBox], [x[0] for x in boundingBox], shape= shape)
                 rr3, cc3 = draw.polygon_perimeter([x[1] - 1 for x in boundingBox], [x[0] for x in boundingBox], shape= shape)
                 rr4, cc4 = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] + 1 for x in boundingBox], shape= shape)
-                rr5, cc5 = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] - 1 for x in boundingBox], shape= shape)'''
+                rr5, cc5 = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] - 1 for x in boundingBox], shape= shape)
 
                 if (label=='Mask'):
                     boxColor = green
@@ -628,8 +628,9 @@ def performDetect(calibrate = True, f = 0.00415, imagePath="data/dog.jpg", thres
                     cv2.rectangle(image, (int(x), int(y)), (x + w, y+h ), (150,0,0), 3)
                     cv2.putText(image, str(i)+" No SD", (x,y - 10), font, font_scale, (0, 0, 150), thickness)
                 i+=1
-
-            '''draw.set_color(image, (rr, cc), boxColor, alpha= 0.8)
+                
+            '''
+            draw.set_color(image, (rr, cc), boxColor, alpha= 0.8)
             draw.set_color(image, (rr2, cc2), boxColor, alpha= 0.8)
             draw.set_color(image, (rr3, cc3), boxColor, alpha= 0.8)
             draw.set_color(image, (rr4, cc4), boxColor, alpha= 0.8)
