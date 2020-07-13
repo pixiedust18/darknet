@@ -216,6 +216,7 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
     darknet_image = darknet.make_image(darknet.network_width(netMain),
                                     darknet.network_height(netMain),3)
     main_tim = 0
+    frame_no = 0
     while True:
         #try:
             prev_time = time.time()
@@ -232,8 +233,8 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
             out.write(image)
             print(1/(time.time()-prev_time))
             main_tim += time.time()-prev_time
-            
-            print("-------------------------------------------------------------------\n time calc = ", main_tim, '\n------------------------------------------------------------')
+            frame_no += 1
+            print("-------------------------------------------------------------------\n frame no  = ", frame_no, '\n------------------------------------------------------------')
             io.imshow(image)
             io.show()
             cv2.waitKey(3)
