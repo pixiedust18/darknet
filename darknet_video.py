@@ -215,6 +215,7 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
     # Create an image we reuse for each detect
     darknet_image = darknet.make_image(darknet.network_width(netMain),
                                     darknet.network_height(netMain),3)
+    main_tim = 0
     while True:
         #try:
             prev_time = time.time()
@@ -230,6 +231,9 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             out.write(image)
             print(1/(time.time()-prev_time))
+            main_tim += time.time()-prev_time
+            
+            print("-------------------------------------------------------------------\n time calc = ", main_tim, '\n------------------------------------------------------------')
             io.imshow(image)
             io.show()
             cv2.waitKey(3)
