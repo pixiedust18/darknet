@@ -971,21 +971,21 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         std::cout << " IN CHECK ";
         if (x1 == x2 and y1 == y2)
             return true;
-        /*std::cout<<" IN CHECK ";
-    float ed = sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
-    std::cout<<(ed)<<"\n";
-    
-    float x_dist = abs(x1-x2);
-    float y_dist = abs(y1-y2);
-    float theta = atan(y_dist / x_dist);
-    
-    float sd1 = h1 / 1.7 * cos(theta);
-    float sd2 = h2 / 1.7 * cos(theta);
-    
-    if (ed > 0 && (sd1 + sd2) > ed)
-        return false;*/
+        std::cout<<" IN CHECK ";
+        float ed = sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+        std::cout<<(ed)<<"\n";
 
-        float v1 = 1.6 * F / (F * h1 + 1.65);
+        float x_dist = abs(x1-x2);
+        float y_dist = abs(y1-y2);
+        float theta = atan(y_dist / x_dist);
+
+        float sd1 = h1 / 1.7 * cos(theta);
+        float sd2 = h2 / 1.7 * cos(theta);
+
+        if (ed > 0 && (sd1 + sd2) > ed)
+            return false;
+
+        /*float v1 = 1.6 * F / (F * h1 + 1.65);
         float v2 = 1.6 * F / (F * h2 + 1.65);
         float u1 = v1* 1.6/h1;
         float vsd1, vsd2;
@@ -1006,12 +1006,19 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         float ed = sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (v1-v2)*(v1-v2));
 
         if(ed>0 && ed<sd)
-            return false;
+            return false;*/
         return true;
     }
+    long min_x = 100000, min_y = 100000, max_x = -1, max_y = -1;
     extern "C" void draw_detections_cv_v3(mat_cv *mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
     {
-        std::cout << "extern C void draw_detections_cv_v3 \n";
+        ifstream in;
+        in.open("floor_coordinates.txt");
+        std::cout<<"file opened";
+        bool modify;
+        in>>modify>>min_x>>min_y>>max_x>>max_y;
+        in.close();
+        
         int xywh[num][4];
         try
         {
@@ -1108,10 +1115,36 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
                         xywh[ppl][1] = top;
                         xywh[ppl][2] = right - left;
                         xywh[ppl][3] = bot - top;
+                        if(left<min_x)
+                        {
+                            min_x = left;
+                            modify = true;
+                        }
+                        if(right>max_x)
+                        {
+                            max_x = right;
+                            modify = true;
+                        }
+                        if(top<min_y)
+                        {
+                            min_y = left;
+                            modify = true;
+                        }
+                        if(bot>max_y)
+                        {
+                            max_y = right;
+                            modify = true;
+                        }
                         ppl++;
                     }
                 }
             }
+            ofstream os;
+            os.open("floor_coordinates.txt"); 
+            std::cout<<"file opened";
+            os<<modify<<min_x<<min_y<<max_x<<max_y;
+            os.close();
+            
             std::cout << ppl << std::endl;
             bool sd_main[ppl];
             for (int l = 0; l < ppl; l++)
