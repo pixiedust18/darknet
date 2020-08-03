@@ -1142,7 +1142,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
             ofstream os;
             os.open("floor_coordinates.txt"); 
             std::cout<<"file opened";
-            os<<modify<<min_x<<min_y<<max_x<<max_y;
+            os<<modify<<" "<<min_x<<" "<<min_y<<" "<<max_x<<" "<<max_y;
             os.close();
             
             std::cout << ppl << std::endl;
