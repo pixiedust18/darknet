@@ -1171,6 +1171,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
     long min_x = 100000, min_y = 100000, max_x = -1, max_y = -1;
     extern "C" void draw_detections_cv_v3(mat_cv *mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
     {
+        cout<<"ytjtyjdj";
         ifstream in;
         in.open("/content/darknet/floor_coordinates.txt");
         std::cout<<"file opened";
