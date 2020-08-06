@@ -1033,13 +1033,13 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         pt1.y = start_y1;
         pt2.x = start_x2;
         pt2.y = start_y2;
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
 
         pt1.x = end_x1;
         pt1.y = end_y1;
         pt2.x = end_x2;
         pt2.y = end_y2;
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
 
         for(int i=0; i<zones; i++)
         {
@@ -1047,20 +1047,20 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
             pt1.y = y1[i];
             pt2.x = x2[i];
             pt2.y = y2[i];
-             cv::line(mat, pt1, pt2, color, 1, 8);
+             cv::line(*mat, pt1, pt2, color, 1, 8);
         }
 
         pt1.x = start_x1;
         pt1.y = start_y1;
         pt2.x = end_x1;
         pt2.y = end_y1;
-             cv::line(mat, pt1, pt2, color, 1, 8);
+             cv::line(*mat, pt1, pt2, color, 1, 8);
 
         pt1.x = start_x2;
         pt1.y = start_y2;
         pt2.x = end_x2;
         pt2.y = end_y2;
-             cv::line(mat, pt1, pt2, color, 1, 8);
+             cv::line(*mat, pt1, pt2, color, 1, 8);
     }
     int find_zone(int find_x, int find_y, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, int *m, int* c)
     {
@@ -1093,75 +1093,75 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
             pt1.y = start_y1;
             pt2.x = start_x2;
             pt2.y = start_y2;
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
 
             pt1.x = start_x1;
             pt1.y = start_y1;
             pt2.x = x1[0];
             pt2.y = y1[0];
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
 
             pt1.x = x1[0];
             pt1.y = y1[0];
             pt2.x = x2[0];
             pt2.y = y2[0];
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
 
             pt2.x = x2[0];
             pt2.y = y2[0];
             pt2.x = start_x2;
             pt2.y = start_y2;
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
         } else if(zone_no == zones)
         {
             pt1.x = end_x1;
             pt1.y = end_y1;
             pt2.x = end_x2;
             pt2.y = end_y2;
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
 
             pt1.x = end_x1;
             pt1.y = end_y1;
             pt2.x = x1[zones-2];
             pt2.y = y1[zones-2];
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
 
             pt1.x = x1[zones-2];
             pt1.y = y1[zones-2];
             pt2.x = x2[zones-2];
             pt2.y = y2[zones-2];
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
 
             pt2.x = x2[zones-2];
             pt2.y = y2[zones-2];
             pt2.x = end_x2;
             pt2.y = end_y2;
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
         } else
         {
             pt1.x = x1[zone_no-2];
             pt1.y = y1[zone_no-2];
             pt2.x = x2[zone_no-2];
             pt2.y = y2[zone_no-2];
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
 
             pt1.x = x1[zone_no-2];
             pt1.y = y1[zone_no-2];
             pt2.x = x1[zone_no-1];
             pt2.y = y1[zone_no-1];
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
 
             pt1.x = x2[zone_no-2];
             pt1.y = y2[zone_no-2];
             pt2.x = x2[zone_no-1];
             pt2.y = y2[zone_no-1];
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
 
             pt1.x = x1[zone_no-1];
             pt1.y = y1[zone_no-1];
             pt2.x = x2[zone_no-1];
             pt2.y = y2[zone_no-1];
-            cv::line(mat, pt1, pt2, color, 1, 8);
+            cv::line(*mat, pt1, pt2, color, 1, 8);
         }
 
     }
