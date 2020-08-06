@@ -1009,15 +1009,18 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
             return false;*/
         return true;
     }
-    bool pointaboveline(int m, int c, int x1, int y1)
+    bool pointaboveline(float m, float c, int x1, int y1)
     {
-      if(y1 >= (m*x1 + c))
+        int y = (int)(m*x1 + c);
+      if(y1 >= y)
         return true;
       return false;
     }
-    bool pointbelowline(int m, int c, int x1, int  y1)
+    bool pointbelowline(float m, float c, int x1, int  y1)
     {
-      if(y1 <= (m*x1 + c))
+        int y = (int)(m*x1 + c);
+
+      if(y1 <= y)
         return true;
       return false;
     }
@@ -1062,7 +1065,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         pt2.y = end_y2;
              cv::line(*mat, pt1, pt2, color, 1, 8);
     }
-    int find_zone(int find_x, int find_y, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, int *m, int* c)
+    int find_zone(int find_x, int find_y, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, float *m, float* c)
     {
         if(pointaboveline(m[0], c[0], find_x, find_y))
         {
@@ -1079,7 +1082,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         }
         return zones;
     }
-    int draw_zone1(cv::Mat *mat, int zone_no, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, int *m, int* c)
+    int draw_zone1(cv::Mat *mat, int zone_no, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, float *m, float* c)
     {
         cv::Scalar color;
         color.val[0] = 255;
