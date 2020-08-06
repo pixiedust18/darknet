@@ -1,2071 +1,1712 @@
-#include "image_opencv.h"
-#include <iostream>
-
-#ifdef OPENCV
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include "image.h"
 #include "utils.h"
+#include "blas.h"
+#include "dark_cuda.h"
+#include <stdio.h>
+#ifndef _USE_MATH_DEFINES
+#define _USE_MATH_DEFINES
+#endif
+#include <math.h>
 
-#include <cstdio>
-#include <cstdlib>
-#include <cmath>
-#include <string>
-#include <vector>
-#include <fstream>
-#include <algorithm>
-#include <atomic>
-#include <string.h>
-#include <opencv2/core/version.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/opencv.hpp>
-#include <opencv2/opencv_modules.hpp>
-
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/video/video.hpp>
-
-// includes for OpenCV >= 3.x
-#ifndef CV_VERSION_EPOCH
-#include <opencv2/core/types.hpp>
-#include <opencv2/videoio/videoio.hpp>
-#include <opencv2/imgcodecs/imgcodecs.hpp>
+#ifndef STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#endif
+#ifndef STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 #endif
 
-// OpenCV includes for OpenCV 2.x
-#ifdef CV_VERSION_EPOCH
-#include <opencv2/highgui/highgui_c.h>
-#include <opencv2/imgproc/imgproc_c.h>
-#include <opencv2/core/types_c.h>
-#include <opencv2/core/version.hpp>
-#endif
-using namespace std;
-//using namespace cv;
+extern int check_mistakes;
+//int windows = 0;
 
-using std::cerr;
-using std::endl;
+float colors[6][3] = { {1,0,1}, {0,0,1},{0,1,1},{0,1,0},{1,1,0},{1,0,0} };
 
-#ifdef DEBUG
-#define OCV_D "d"
-#else
-#define OCV_D
-#endif //DEBUG
-
-// OpenCV libraries
-#ifndef CV_VERSION_EPOCH
-#define OPENCV_VERSION CVAUX_STR(CV_VERSION_MAJOR) \
-"" CVAUX_STR(CV_VERSION_MINOR) "" CVAUX_STR(CV_VERSION_REVISION) OCV_D
-#ifndef USE_CMAKE_LIBS
-#pragma comment(lib, "opencv_world" OPENCV_VERSION ".lib")
-#endif // USE_CMAKE_LIBS
-#else  // CV_VERSION_EPOCH
-#define OPENCV_VERSION CVAUX_STR(CV_VERSION_EPOCH) \
-"" CVAUX_STR(CV_VERSION_MAJOR) "" CVAUX_STR(CV_VERSION_MINOR) OCV_D
-#ifndef USE_CMAKE_LIBS
-#pragma comment(lib, "opencv_core" OPENCV_VERSION ".lib")
-#pragma comment(lib, "opencv_imgproc" OPENCV_VERSION ".lib")
-#pragma comment(lib, "opencv_highgui" OPENCV_VERSION ".lib")
-#endif // USE_CMAKE_LIBS
-#endif // CV_VERSION_EPOCH
-
-#include "http_stream.h"
-
-#ifndef CV_RGB
-#define CV_RGB(r, g, b) cvScalar((b), (g), (r), 0)
-#endif
-
-#ifndef CV_FILLED
-#define CV_FILLED cv::FILLED
-#endif
-
-#ifndef CV_AA
-#define CV_AA cv::LINE_AA
-#endif
-
-extern "C"
+float get_color(int c, int x, int max)
 {
+    float ratio = ((float)x/max)*5;
+    int i = floor(ratio);
+    int j = ceil(ratio);
+    ratio -= i;
+    float r = (1-ratio) * colors[i][c] + ratio*colors[j][c];
+    //printf("%f\n", r);
+    return r;
+}
 
-    //struct mat_cv : cv::Mat {  };
-    //struct cap_cv : cv::VideoCapture { };
-    //struct write_cv : cv::VideoWriter {  };
-
-    //struct mat_cv : cv::Mat { int a[0]; };
-    //struct cap_cv : cv::VideoCapture { int a[0]; };
-    //struct write_cv : cv::VideoWriter { int a[0]; };
-
-    // ====================================================================
-    // cv::Mat
-    // ====================================================================
-    image mat_to_image(cv::Mat mat);
-    cv::Mat image_to_mat(image img);
-    //    image ipl_to_image(mat_cv* src);
-    //    mat_cv *image_to_ipl(image img);
-    //    cv::Mat ipl_to_mat(IplImage *ipl);
-    //    IplImage *mat_to_ipl(cv::Mat mat);
-
-    extern "C" mat_cv *load_image_mat_cv(const char *filename, int flag)
-    {
-        cv::Mat *mat_ptr = NULL;
-        try
-        {
-            cv::Mat mat = cv::imread(filename, flag);
-            if (mat.empty())
-            {
-                std::string shrinked_filename = filename;
-                if (shrinked_filename.length() > 1024)
-                {
-                    shrinked_filename.resize(1024);
-                    shrinked_filename = std::string("name is too long: ") + shrinked_filename;
-                }
-                cerr << "Cannot load image " << shrinked_filename << std::endl;
-                std::ofstream bad_list("bad.list", std::ios::out | std::ios::app);
-                bad_list << shrinked_filename << std::endl;
-                //if (check_mistakes) getchar();
-                return NULL;
-            }
-            cv::Mat dst;
-            if (mat.channels() == 3)
-                cv::cvtColor(mat, dst, cv::COLOR_RGB2BGR);
-            else if (mat.channels() == 4)
-                cv::cvtColor(mat, dst, cv::COLOR_RGBA2BGRA);
-            else
-                dst = mat;
-
-            mat_ptr = new cv::Mat(dst);
-
-            return (mat_cv *)mat_ptr;
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: load_image_mat_cv \n";
-        }
-        if (mat_ptr)
-            delete mat_ptr;
-        return NULL;
-    }
-    // ----------------------------------------
-
-    cv::Mat load_image_mat(char *filename, int channels)
-    {
-        int flag = cv::IMREAD_UNCHANGED;
-        if (channels == 0)
-            flag = cv::IMREAD_COLOR;
-        else if (channels == 1)
-            flag = cv::IMREAD_GRAYSCALE;
-        else if (channels == 3)
-            flag = cv::IMREAD_COLOR;
-        else
-        {
-            fprintf(stderr, "OpenCV can't force load with %d channels\n", channels);
-        }
-        //flag |= IMREAD_IGNORE_ORIENTATION;    // un-comment it if you want
-
-        cv::Mat *mat_ptr = (cv::Mat *)load_image_mat_cv(filename, flag);
-
-        if (mat_ptr == NULL)
-        {
-            return cv::Mat();
-        }
-        cv::Mat mat = *mat_ptr;
-        delete mat_ptr;
-
-        return mat;
-    }
-    // ----------------------------------------
-
-    extern "C" image load_image_cv(char *filename, int channels)
-    {
-        cv::Mat mat = load_image_mat(filename, channels);
-
-        if (mat.empty())
-        {
-            return make_image(10, 10, channels);
-        }
-        return mat_to_image(mat);
-    }
-    // ----------------------------------------
-
-    extern "C" image load_image_resize(char *filename, int w, int h, int c, image *im)
-    {
-        image out;
-        try
-        {
-            cv::Mat loaded_image = load_image_mat(filename, c);
-
-            *im = mat_to_image(loaded_image);
-
-            cv::Mat resized(h, w, CV_8UC3);
-            cv::resize(loaded_image, resized, cv::Size(w, h), 0, 0, cv::INTER_LINEAR);
-            out = mat_to_image(resized);
-        }
-        catch (...)
-        {
-            cerr << " OpenCV exception: load_image_resize() can't load image %s " << filename << " \n";
-            out = make_image(w, h, c);
-            *im = make_image(w, h, c);
-        }
-        return out;
-    }
-    // ----------------------------------------
-
-    extern "C" int get_width_mat(mat_cv *mat)
-    {
-        if (mat == NULL)
-        {
-            cerr << " Pointer is NULL in get_width_mat() \n";
-            return 0;
-        }
-        return ((cv::Mat *)mat)->cols;
-    }
-    // ----------------------------------------
-
-    extern "C" int get_height_mat(mat_cv *mat)
-    {
-        if (mat == NULL)
-        {
-            cerr << " Pointer is NULL in get_height_mat() \n";
-            return 0;
-        }
-        return ((cv::Mat *)mat)->rows;
-    }
-    // ----------------------------------------
-
-    extern "C" void release_mat(mat_cv **mat)
-    {
-        try
-        {
-            cv::Mat **mat_ptr = (cv::Mat **)mat;
-            if (*mat_ptr)
-                delete *mat_ptr;
-            *mat_ptr = NULL;
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: release_mat \n";
-        }
-    }
-
-    // ====================================================================
-    // IplImage
-    // ====================================================================
+static float get_pixel(image m, int x, int y, int c)
+{
+    assert(x < m.w && y < m.h && c < m.c);
+    return m.data[c*m.h*m.w + y*m.w + x];
+}
+static float get_pixel_extend(image m, int x, int y, int c)
+{
+    if (x < 0 || x >= m.w || y < 0 || y >= m.h) return 0;
     /*
-extern "C" int get_width_cv(mat_cv *ipl_src)
-{
-    IplImage *ipl = (IplImage *)ipl_src;
-    return ipl->width;
+    if(x < 0) x = 0;
+    if(x >= m.w) x = m.w-1;
+    if(y < 0) y = 0;
+    if(y >= m.h) y = m.h-1;
+    */
+    if (c < 0 || c >= m.c) return 0;
+    return get_pixel(m, x, y, c);
 }
-// ----------------------------------------
-extern "C" int get_height_cv(mat_cv *ipl_src)
+static void set_pixel(image m, int x, int y, int c, float val)
 {
-    IplImage *ipl = (IplImage *)ipl_src;
-    return ipl->height;
+    if (x < 0 || y < 0 || c < 0 || x >= m.w || y >= m.h || c >= m.c) return;
+    assert(x < m.w && y < m.h && c < m.c);
+    m.data[c*m.h*m.w + y*m.w + x] = val;
 }
-// ----------------------------------------
-extern "C" void release_ipl(mat_cv **ipl)
+static void add_pixel(image m, int x, int y, int c, float val)
 {
-    IplImage **ipl_img = (IplImage **)ipl;
-    if (*ipl_img) cvReleaseImage(ipl_img);
-    *ipl_img = NULL;
+    assert(x < m.w && y < m.h && c < m.c);
+    m.data[c*m.h*m.w + y*m.w + x] += val;
 }
-// ----------------------------------------
-// ====================================================================
-// image-to-ipl, ipl-to-image, image_to_mat, mat_to_image
-// ====================================================================
-extern "C" mat_cv *image_to_ipl(image im)
+
+void composite_image(image source, image dest, int dx, int dy)
 {
-    int x, y, c;
-    IplImage *disp = cvCreateImage(cvSize(im.w, im.h), IPL_DEPTH_8U, im.c);
-    int step = disp->widthStep;
-    for (y = 0; y < im.h; ++y) {
-        for (x = 0; x < im.w; ++x) {
-            for (c = 0; c < im.c; ++c) {
-                float val = im.data[c*im.h*im.w + y*im.w + x];
-                disp->imageData[y*step + x*im.c + c] = (unsigned char)(val * 255);
+    int x,y,k;
+    for(k = 0; k < source.c; ++k){
+        for(y = 0; y < source.h; ++y){
+            for(x = 0; x < source.w; ++x){
+                float val = get_pixel(source, x, y, k);
+                float val2 = get_pixel_extend(dest, dx+x, dy+y, k);
+                set_pixel(dest, dx+x, dy+y, k, val * val2);
             }
         }
     }
-    return (mat_cv *)disp;
 }
-// ----------------------------------------
-extern "C" image ipl_to_image(mat_cv* src_ptr)
+
+image border_image(image a, int border)
 {
-    IplImage* src = (IplImage*)src_ptr;
-    int h = src->height;
-    int w = src->width;
-    int c = src->nChannels;
-    image im = make_image(w, h, c);
-    unsigned char *data = (unsigned char *)src->imageData;
-    int step = src->widthStep;
-    int i, j, k;
-    for (i = 0; i < h; ++i) {
-        for (k = 0; k < c; ++k) {
-            for (j = 0; j < w; ++j) {
-                im.data[k*w*h + i*w + j] = data[i*step + j*c + k] / 255.;
+    image b = make_image(a.w + 2*border, a.h + 2*border, a.c);
+    int x,y,k;
+    for(k = 0; k < b.c; ++k){
+        for(y = 0; y < b.h; ++y){
+            for(x = 0; x < b.w; ++x){
+                float val = get_pixel_extend(a, x - border, y - border, k);
+                if(x - border < 0 || x - border >= a.w || y - border < 0 || y - border >= a.h) val = 1;
+                set_pixel(b, x, y, k, val);
             }
         }
     }
-    return im;
+    return b;
 }
-// ----------------------------------------
-cv::Mat ipl_to_mat(IplImage *ipl)
+
+image tile_images(image a, image b, int dx)
 {
-    Mat m = cvarrToMat(ipl, true);
-    return m;
-}
-// ----------------------------------------
-IplImage *mat_to_ipl(cv::Mat mat)
-{
-    IplImage *ipl = new IplImage;
-    *ipl = mat;
-    return ipl;
-}
-// ----------------------------------------
-*/
-
-    extern "C" cv::Mat image_to_mat(image img)
-    {
-        int channels = img.c;
-        int width = img.w;
-        int height = img.h;
-        cv::Mat mat = cv::Mat(height, width, CV_8UC(channels));
-        int step = mat.step;
-
-        for (int y = 0; y < img.h; ++y)
-        {
-            for (int x = 0; x < img.w; ++x)
-            {
-                for (int c = 0; c < img.c; ++c)
-                {
-                    float val = img.data[c * img.h * img.w + y * img.w + x];
-                    mat.data[y * step + x * img.c + c] = (unsigned char)(val * 255);
-                }
-            }
-        }
-        return mat;
-    }
-    // ----------------------------------------
-
-    extern "C" image mat_to_image(cv::Mat mat)
-    {
-        int w = mat.cols;
-        int h = mat.rows;
-        int c = mat.channels();
-        image im = make_image(w, h, c);
-        unsigned char *data = (unsigned char *)mat.data;
-        int step = mat.step;
-        for (int y = 0; y < h; ++y)
-        {
-            for (int k = 0; k < c; ++k)
-            {
-                for (int x = 0; x < w; ++x)
-                {
-                    //uint8_t val = mat.ptr<uint8_t>(y)[c * x + k];
-                    //uint8_t val = mat.at<Vec3b>(y, x).val[k];
-                    //im.data[k*w*h + y*w + x] = val / 255.0f;
-
-                    im.data[k * w * h + y * w + x] = data[y * step + x * c + k] / 255.0f;
-                }
-            }
-        }
-        return im;
-    }
-
-    image mat_to_image_cv(mat_cv *mat)
-    {
-        return mat_to_image(*(cv::Mat *)mat);
-    }
-
-    // ====================================================================
-    // Window
-    // ====================================================================
-    extern "C" void create_window_cv(char const *window_name, int full_screen, int width, int height)
-    {
-        try
-        {
-            int window_type = cv::WINDOW_NORMAL;
-#ifdef CV_VERSION_EPOCH // OpenCV 2.x
-            if (full_screen)
-                window_type = CV_WINDOW_FULLSCREEN;
-#else
-            if (full_screen)
-                window_type = cv::WINDOW_FULLSCREEN;
-#endif
-            cv::namedWindow(window_name, window_type);
-            cv::moveWindow(window_name, 0, 0);
-            cv::resizeWindow(window_name, width, height);
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: create_window_cv \n";
-        }
-    }
-    // ----------------------------------------
-
-    extern "C" void destroy_all_windows_cv()
-    {
-        try
-        {
-            cv::destroyAllWindows();
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: destroy_all_windows_cv \n";
-        }
-    }
-    // ----------------------------------------
-
-    extern "C" int wait_key_cv(int delay)
-    {
-        try
-        {
-            return cv::waitKey(delay);
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: wait_key_cv \n";
-        }
-        return -1;
-    }
-    // ----------------------------------------
-
-    extern "C" int wait_until_press_key_cv()
-    {
-        return wait_key_cv(0);
-    }
-    // ----------------------------------------
-
-    extern "C" void make_window(char *name, int w, int h, int fullscreen)
-    {
-        try
-        {
-            cv::namedWindow(name, cv::WINDOW_NORMAL);
-            if (fullscreen)
-            {
-#ifdef CV_VERSION_EPOCH // OpenCV 2.x
-                cv::setWindowProperty(name, cv::WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
-#else
-                cv::setWindowProperty(name, cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
-#endif
-            }
-            else
-            {
-                cv::resizeWindow(name, w, h);
-                if (strcmp(name, "Demo") == 0)
-                    cv::moveWindow(name, 0, 0);
-            }
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: make_window \n";
-        }
-    }
-    // ----------------------------------------
-
-    static float get_pixel(image m, int x, int y, int c)
-    {
-        assert(x < m.w && y < m.h && c < m.c);
-        return m.data[c * m.h * m.w + y * m.w + x];
-    }
-    // ----------------------------------------
-
-    extern "C" void show_image_cv(image p, const char *name)
-    {
-        try
-        {
-            image copy = copy_image(p);
-            constrain_image(copy);
-
-            cv::Mat mat = image_to_mat(copy);
-            if (mat.channels() == 3)
-                cv::cvtColor(mat, mat, cv::COLOR_RGB2BGR);
-            else if (mat.channels() == 4)
-                cv::cvtColor(mat, mat, cv::COLOR_RGBA2BGR);
-            cv::namedWindow(name, cv::WINDOW_NORMAL);
-            cv::imshow(name, mat);
-            free_image(copy);
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: show_image_cv \n";
-        }
-    }
-    // ----------------------------------------
-
-    /*
-extern "C" void show_image_cv_ipl(mat_cv *disp, const char *name)
-{
-    if (disp == NULL) return;
-    char buff[256];
-    sprintf(buff, "%s", name);
-    cv::namedWindow(buff, WINDOW_NORMAL);
-    cvShowImage(buff, disp);
-}
-// ----------------------------------------
-*/
-
-    extern "C" void show_image_mat(mat_cv *mat_ptr, const char *name)
-    {
-        try
-        {
-            if (mat_ptr == NULL)
-                return;
-            cv::Mat &mat = *(cv::Mat *)mat_ptr;
-            cv::namedWindow(name, cv::WINDOW_NORMAL);
-            cv::imshow(name, mat);
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: show_image_mat \n";
-        }
-    }
-
-    // ====================================================================
-    // Video Writer
-    // ====================================================================
-    extern "C" write_cv *create_video_writer(char *out_filename, char c1, char c2, char c3, char c4, int fps, int width, int height, int is_color)
-    {
-        try
-        {
-            cv::VideoWriter *output_video_writer =
-#ifdef CV_VERSION_EPOCH
-                new cv::VideoWriter(out_filename, CV_FOURCC(c1, c2, c3, c4), fps, cv::Size(width, height), is_color);
-#else
-                new cv::VideoWriter(out_filename, cv::VideoWriter::fourcc(c1, c2, c3, c4), fps, cv::Size(width, height), is_color);
-#endif
-
-            return (write_cv *)output_video_writer;
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: create_video_writer \n";
-        }
-        return NULL;
-    }
-
-    extern "C" void write_frame_cv(write_cv *output_video_writer, mat_cv *mat)
-    {
-        try
-        {
-            cv::VideoWriter *out = (cv::VideoWriter *)output_video_writer;
-            out->write(*(cv::Mat *)mat);
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: write_frame_cv \n";
-        }
-    }
-
-    extern "C" void release_video_writer(write_cv **output_video_writer)
-    {
-        try
-        {
-            if (output_video_writer)
-            {
-                std::cout << " closing...";
-                cv::VideoWriter *out = *(cv::VideoWriter **)output_video_writer;
-                out->release();
-                delete out;
-                output_video_writer = NULL;
-                std::cout << " closed!";
-            }
-            else
-            {
-                cerr << "OpenCV exception: output_video_writer isn't created \n";
-            }
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: release_video_writer \n";
-        }
-    }
-
-    /*
-extern "C" void *open_video_stream(const char *f, int c, int w, int h, int fps)
-{
-    VideoCapture *cap;
-    if(f) cap = new VideoCapture(f);
-    else cap = new VideoCapture(c);
-    if(!cap->isOpened()) return 0;
-    if(w) cap->set(CV_CAP_PROP_FRAME_WIDTH, w);
-    if(h) cap->set(CV_CAP_PROP_FRAME_HEIGHT, w);
-    if(fps) cap->set(CV_CAP_PROP_FPS, w);
-    return (void *) cap;
-}
-extern "C" image get_image_from_stream(void *p)
-{
-    VideoCapture *cap = (VideoCapture *)p;
-    Mat m;
-    *cap >> m;
-    if(m.empty()) return make_empty_image(0,0,0);
-    return mat_to_image(m);
-}
-extern "C" int show_image_cv(image im, const char* name, int ms)
-{
-    Mat m = image_to_mat(im);
-    imshow(name, m);
-    int c = waitKey(ms);
-    if (c != -1) c = c%256;
+    if(a.w == 0) return copy_image(b);
+    image c = make_image(a.w + b.w + dx, (a.h > b.h) ? a.h : b.h, (a.c > b.c) ? a.c : b.c);
+    fill_cpu(c.w*c.h*c.c, 1, c.data, 1);
+    embed_image(a, c, 0, 0);
+    composite_image(b, c, a.w + dx, 0);
     return c;
 }
-*/
 
-    // ====================================================================
-    // Video Capture
-    // ====================================================================
-
-    extern "C" cap_cv *get_capture_video_stream(const char *path)
-    {
-        cv::VideoCapture *cap = NULL;
-        try
-        {
-            cap = new cv::VideoCapture(path);
-        }
-        catch (...)
-        {
-            cerr << " OpenCV exception: video-stream " << path << " can't be opened! \n";
-        }
-        return (cap_cv *)cap;
+image get_label(image **characters, char *string, int size)
+{
+    if(size > 7) size = 7;
+    image label = make_empty_image(0,0,0);
+    while(*string){
+        image l = characters[size][(int)*string];
+        image n = tile_images(label, l, -size - 1 + (size+1)/2);
+        free_image(label);
+        label = n;
+        ++string;
     }
-    // ----------------------------------------
+    image b = border_image(label, label.h*.25);
+    free_image(label);
+    return b;
+}
 
-    extern "C" cap_cv *get_capture_webcam(int index)
-    {
-        cv::VideoCapture *cap = NULL;
-        try
-        {
-            cap = new cv::VideoCapture(index);
-            //cap->set(CV_CAP_PROP_FRAME_WIDTH, 1280);
-            //cap->set(CV_CAP_PROP_FRAME_HEIGHT, 960);
-        }
-        catch (...)
-        {
-            cerr << " OpenCV exception: Web-camera " << index << " can't be opened! \n";
-        }
-        return (cap_cv *)cap;
+image get_label_v3(image **characters, char *string, int size)
+{
+    size = size / 10;
+    if (size > 7) size = 7;
+    image label = make_empty_image(0, 0, 0);
+    while (*string) {
+        image l = characters[size][(int)*string];
+        image n = tile_images(label, l, -size - 1 + (size + 1) / 2);
+        free_image(label);
+        label = n;
+        ++string;
     }
-    // ----------------------------------------
+    image b = border_image(label, label.h*.05);
+    free_image(label);
+    return b;
+}
 
-    extern "C" void release_capture(cap_cv *cap)
-    {
-        try
-        {
-            cv::VideoCapture *cpp_cap = (cv::VideoCapture *)cap;
-            delete cpp_cap;
-        }
-        catch (...)
-        {
-            cerr << " OpenCV exception: cv::VideoCapture " << cap << " can't be released! \n";
+void draw_label(image a, int r, int c, image label, const float *rgb)
+{
+    int w = label.w;
+    int h = label.h;
+    if (r - h >= 0) r = r - h;
+
+    int i, j, k;
+    for(j = 0; j < h && j + r < a.h; ++j){
+        for(i = 0; i < w && i + c < a.w; ++i){
+            for(k = 0; k < label.c; ++k){
+                float val = get_pixel(label, i, j, k);
+                set_pixel(a, i+c, j+r, k, rgb[k] * val);
+            }
         }
     }
-    // ----------------------------------------
+}
 
-    extern "C" mat_cv *get_capture_frame_cv(cap_cv *cap)
-    {
-        cv::Mat *mat = NULL;
-        try
-        {
-            mat = new cv::Mat();
-            if (cap)
-            {
-                cv::VideoCapture &cpp_cap = *(cv::VideoCapture *)cap;
-                if (cpp_cap.isOpened())
-                {
-                    cpp_cap >> *mat;
-                }
+void draw_weighted_label(image a, int r, int c, image label, const float *rgb, const float alpha)
+{
+    int w = label.w;
+    int h = label.h;
+    if (r - h >= 0) r = r - h;
+
+    int i, j, k;
+    for (j = 0; j < h && j + r < a.h; ++j) {
+        for (i = 0; i < w && i + c < a.w; ++i) {
+            for (k = 0; k < label.c; ++k) {
+                float val1 = get_pixel(label, i, j, k);
+                float val2 = get_pixel(a, i + c, j + r, k);
+                float val_dst = val1 * rgb[k] * alpha + val2 * (1 - alpha);
+                set_pixel(a, i + c, j + r, k, val_dst);
+            }
+        }
+    }
+}
+
+void draw_box_bw(image a, int x1, int y1, int x2, int y2, float brightness)
+{
+    //normalize_image(a);
+    int i;
+    if (x1 < 0) x1 = 0;
+    if (x1 >= a.w) x1 = a.w - 1;
+    if (x2 < 0) x2 = 0;
+    if (x2 >= a.w) x2 = a.w - 1;
+
+    if (y1 < 0) y1 = 0;
+    if (y1 >= a.h) y1 = a.h - 1;
+    if (y2 < 0) y2 = 0;
+    if (y2 >= a.h) y2 = a.h - 1;
+
+    for (i = x1; i <= x2; ++i) {
+        a.data[i + y1*a.w + 0 * a.w*a.h] = brightness;
+        a.data[i + y2*a.w + 0 * a.w*a.h] = brightness;
+    }
+    for (i = y1; i <= y2; ++i) {
+        a.data[x1 + i*a.w + 0 * a.w*a.h] = brightness;
+        a.data[x2 + i*a.w + 0 * a.w*a.h] = brightness;
+    }
+}
+
+void draw_box_width_bw(image a, int x1, int y1, int x2, int y2, int w, float brightness)
+{
+    int i;
+    for (i = 0; i < w; ++i) {
+        float alternate_color = (w % 2) ? (brightness) : (1.0 - brightness);
+        draw_box_bw(a, x1 + i, y1 + i, x2 - i, y2 - i, alternate_color);
+    }
+}
+
+void draw_box(image a, int x1, int y1, int x2, int y2, float r, float g, float b)
+{
+    //normalize_image(a);
+    int i;
+    if(x1 < 0) x1 = 0;
+    if(x1 >= a.w) x1 = a.w-1;
+    if(x2 < 0) x2 = 0;
+    if(x2 >= a.w) x2 = a.w-1;
+
+    if(y1 < 0) y1 = 0;
+    if(y1 >= a.h) y1 = a.h-1;
+    if(y2 < 0) y2 = 0;
+    if(y2 >= a.h) y2 = a.h-1;
+
+    for(i = x1; i <= x2; ++i){
+        a.data[i + y1*a.w + 0*a.w*a.h] = r;
+        a.data[i + y2*a.w + 0*a.w*a.h] = r;
+
+        a.data[i + y1*a.w + 1*a.w*a.h] = g;
+        a.data[i + y2*a.w + 1*a.w*a.h] = g;
+
+        a.data[i + y1*a.w + 2*a.w*a.h] = b;
+        a.data[i + y2*a.w + 2*a.w*a.h] = b;
+    }
+    for(i = y1; i <= y2; ++i){
+        a.data[x1 + i*a.w + 0*a.w*a.h] = r;
+        a.data[x2 + i*a.w + 0*a.w*a.h] = r;
+
+        a.data[x1 + i*a.w + 1*a.w*a.h] = g;
+        a.data[x2 + i*a.w + 1*a.w*a.h] = g;
+
+        a.data[x1 + i*a.w + 2*a.w*a.h] = b;
+        a.data[x2 + i*a.w + 2*a.w*a.h] = b;
+    }
+}
+
+void draw_box_width(image a, int x1, int y1, int x2, int y2, int w, float r, float g, float b)
+{
+    int i;
+    for(i = 0; i < w; ++i){
+        draw_box(a, x1+i, y1+i, x2-i, y2-i, r, g, b);
+    }
+}
+
+void draw_bbox(image a, box bbox, int w, float r, float g, float b)
+{
+    int left  = (bbox.x-bbox.w/2)*a.w;
+    int right = (bbox.x+bbox.w/2)*a.w;
+    int top   = (bbox.y-bbox.h/2)*a.h;
+    int bot   = (bbox.y+bbox.h/2)*a.h;
+
+    int i;
+    for(i = 0; i < w; ++i){
+        draw_box(a, left+i, top+i, right-i, bot-i, r, g, b);
+    }
+}
+
+image **load_alphabet()
+{
+    int i, j;
+    const int nsize = 8;
+    image** alphabets = (image**)xcalloc(nsize, sizeof(image*));
+    for(j = 0; j < nsize; ++j){
+        alphabets[j] = (image*)xcalloc(128, sizeof(image));
+        for(i = 32; i < 127; ++i){
+            char buff[256];
+            sprintf(buff, "data/labels/%d_%d.png", i, j);
+            alphabets[j][i] = load_image_color(buff, 0, 0);
+        }
+    }
+    return alphabets;
+}
+
+
+
+// Creates array of detections with prob > thresh and fills best_class for them
+detection_with_class* get_actual_detections(detection *dets, int dets_num, float thresh, int* selected_detections_num, char **names)
+{
+    int selected_num = 0;
+    detection_with_class* result_arr = (detection_with_class*)xcalloc(dets_num, sizeof(detection_with_class));
+    int i;
+    for (i = 0; i < dets_num; ++i) {
+        int best_class = -1;
+        float best_class_prob = thresh;
+        int j;
+        for (j = 0; j < dets[i].classes; ++j) {
+            int show = strncmp(names[j], "dont_show", 9);
+            if (dets[i].prob[j] > best_class_prob && show) {
+                best_class = j;
+                best_class_prob = dets[i].prob[j];
+            }
+        }
+        if (best_class >= 0) {
+            result_arr[selected_num].det = dets[i];
+            result_arr[selected_num].best_class = best_class;
+            ++selected_num;
+        }
+    }
+    if (selected_detections_num)
+        *selected_detections_num = selected_num;
+    return result_arr;
+}
+
+// compare to sort detection** by bbox.x
+int compare_by_lefts(const void *a_ptr, const void *b_ptr) {
+    const detection_with_class* a = (detection_with_class*)a_ptr;
+    const detection_with_class* b = (detection_with_class*)b_ptr;
+    const float delta = (a->det.bbox.x - a->det.bbox.w/2) - (b->det.bbox.x - b->det.bbox.w/2);
+    return delta < 0 ? -1 : delta > 0 ? 1 : 0;
+}
+
+// compare to sort detection** by best_class probability
+int compare_by_probs(const void *a_ptr, const void *b_ptr) {
+    const detection_with_class* a = (detection_with_class*)a_ptr;
+    const detection_with_class* b = (detection_with_class*)b_ptr;
+    float delta = a->det.prob[a->best_class] - b->det.prob[b->best_class];
+    return delta < 0 ? -1 : delta > 0 ? 1 : 0;
+}
+
+void draw_detections_v3(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
+{
+    static int frame_id = 0;
+    frame_id++;
+    printf("draw_detections_v3 called");
+    int selected_detections_num;
+    detection_with_class* selected_detections = get_actual_detections(dets, num, thresh, &selected_detections_num, names);
+
+    // text output
+    qsort(selected_detections, selected_detections_num, sizeof(*selected_detections), compare_by_lefts);
+    int i;
+    for (i = 0; i < selected_detections_num; ++i) {
+        const int best_class = selected_detections[i].best_class;
+        printf("%s: %.0f%%", names[best_class],    selected_detections[i].det.prob[best_class] * 100);
+        if (ext_output)
+            printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
+                round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2)*im.w),
+                round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2)*im.h),
+                round(selected_detections[i].det.bbox.w*im.w), round(selected_detections[i].det.bbox.h*im.h));
+        else
+            printf("\n");
+        int j;
+        for (j = 0; j < classes; ++j) {
+            if (selected_detections[i].det.prob[j] > thresh && j != best_class) {
+                printf("%s: %.0f%%", names[j], selected_detections[i].det.prob[j] * 100);
+
+                if (ext_output)
+                    printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
+                        round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2)*im.w),
+                        round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2)*im.h),
+                        round(selected_detections[i].det.bbox.w*im.w), round(selected_detections[i].det.bbox.h*im.h));
                 else
-                    std::cout << " Video-stream stopped! \n";
-            }
-            else
-                cerr << " cv::VideoCapture isn't created \n";
-        }
-        catch (...)
-        {
-            std::cout << " OpenCV exception: Video-stream stoped! \n";
-        }
-        return (mat_cv *)mat;
-    }
-    // ----------------------------------------
-
-    extern "C" int get_stream_fps_cpp_cv(cap_cv *cap)
-    {
-        int fps = 25;
-        try
-        {
-            cv::VideoCapture &cpp_cap = *(cv::VideoCapture *)cap;
-#ifndef CV_VERSION_EPOCH // OpenCV 3.x
-            fps = cpp_cap.get(cv::CAP_PROP_FPS);
-#else // OpenCV 2.x
-            fps = cpp_cap.get(CV_CAP_PROP_FPS);
-#endif
-        }
-        catch (...)
-        {
-            cerr << " Can't get FPS of source videofile. For output video FPS = 25 by default. \n";
-        }
-        return fps;
-    }
-    // ----------------------------------------
-
-    extern "C" double get_capture_property_cv(cap_cv *cap, int property_id)
-    {
-        try
-        {
-            cv::VideoCapture &cpp_cap = *(cv::VideoCapture *)cap;
-            return cpp_cap.get(property_id);
-        }
-        catch (...)
-        {
-            cerr << " OpenCV exception: Can't get property of source video-stream. \n";
-        }
-        return 0;
-    }
-    // ----------------------------------------
-
-    extern "C" double get_capture_frame_count_cv(cap_cv *cap)
-    {
-        try
-        {
-            cv::VideoCapture &cpp_cap = *(cv::VideoCapture *)cap;
-#ifndef CV_VERSION_EPOCH // OpenCV 3.x
-            return cpp_cap.get(cv::CAP_PROP_FRAME_COUNT);
-#else // OpenCV 2.x
-            return cpp_cap.get(CV_CAP_PROP_FRAME_COUNT);
-#endif
-        }
-        catch (...)
-        {
-            cerr << " OpenCV exception: Can't get CAP_PROP_FRAME_COUNT of source videofile. \n";
-        }
-        return 0;
-    }
-    // ----------------------------------------
-
-    extern "C" int set_capture_property_cv(cap_cv *cap, int property_id, double value)
-    {
-        try
-        {
-            cv::VideoCapture &cpp_cap = *(cv::VideoCapture *)cap;
-            return cpp_cap.set(property_id, value);
-        }
-        catch (...)
-        {
-            cerr << " Can't set property of source video-stream. \n";
-        }
-        return false;
-    }
-    // ----------------------------------------
-
-    extern "C" int set_capture_position_frame_cv(cap_cv *cap, int index)
-    {
-        try
-        {
-            cv::VideoCapture &cpp_cap = *(cv::VideoCapture *)cap;
-#ifndef CV_VERSION_EPOCH // OpenCV 3.x
-            return cpp_cap.set(cv::CAP_PROP_POS_FRAMES, index);
-#else // OpenCV 2.x
-            return cpp_cap.set(CV_CAP_PROP_POS_FRAMES, index);
-#endif
-        }
-        catch (...)
-        {
-            cerr << " Can't set CAP_PROP_POS_FRAMES of source videofile. \n";
-        }
-        return false;
-    }
-    // ----------------------------------------
-
-    // ====================================================================
-    // ... Video Capture
-    // ====================================================================
-
-    extern "C" image get_image_from_stream_cpp(cap_cv *cap)
-    {
-        cv::Mat *src = NULL;
-        static int once = 1;
-        if (once)
-        {
-            once = 0;
-            do
-            {
-                if (src)
-                    delete src;
-                src = (cv::Mat *)get_capture_frame_cv(cap);
-                if (!src)
-                    return make_empty_image(0, 0, 0);
-            } while (src->cols < 1 || src->rows < 1 || src->channels() < 1);
-            printf("Video stream: %d x %d \n", src->cols, src->rows);
-        }
-        else
-            src = (cv::Mat *)get_capture_frame_cv(cap);
-
-        if (!src)
-            return make_empty_image(0, 0, 0);
-        image im = mat_to_image(*src);
-        rgbgr_image(im);
-        if (src)
-            delete src;
-        return im;
-    }
-    // ----------------------------------------
-
-    extern "C" int wait_for_stream(cap_cv *cap, cv::Mat *src, int dont_close)
-    {
-        if (!src)
-        {
-            if (dont_close)
-                src = new cv::Mat(416, 416, CV_8UC(3)); // cvCreateImage(cvSize(416, 416), IPL_DEPTH_8U, 3);
-            else
-                return 0;
-        }
-        if (src->cols < 1 || src->rows < 1 || src->channels() < 1)
-        {
-            if (dont_close)
-            {
-                delete src; // cvReleaseImage(&src);
-                int z = 0;
-                for (z = 0; z < 20; ++z)
-                {
-                    src = (cv::Mat *)get_capture_frame_cv(cap);
-                    delete src; // cvReleaseImage(&src);
-                }
-                src = new cv::Mat(416, 416, CV_8UC(3)); // cvCreateImage(cvSize(416, 416), IPL_DEPTH_8U, 3);
-            }
-            else
-                return 0;
-        }
-        return 1;
-    }
-    // ----------------------------------------
-
-    extern "C" image get_image_from_stream_resize(cap_cv *cap, int w, int h, int c, mat_cv **in_img, int dont_close)
-    {
-        c = c ? c : 3;
-        cv::Mat *src = NULL;
-
-        static int once = 1;
-        if (once)
-        {
-            once = 0;
-            do
-            {
-                if (src)
-                    delete src;
-                src = (cv::Mat *)get_capture_frame_cv(cap);
-                if (!src)
-                    return make_empty_image(0, 0, 0);
-            } while (src->cols < 1 || src->rows < 1 || src->channels() < 1);
-            printf("Video stream: %d x %d \n", src->cols, src->rows);
-        }
-        else
-            src = (cv::Mat *)get_capture_frame_cv(cap);
-
-        if (!wait_for_stream(cap, src, dont_close))
-            return make_empty_image(0, 0, 0);
-
-        *(cv::Mat **)in_img = src;
-
-        cv::Mat new_img = cv::Mat(h, w, CV_8UC(c));
-        cv::resize(*src, new_img, new_img.size(), 0, 0, cv::INTER_LINEAR);
-        if (c > 1)
-            cv::cvtColor(new_img, new_img, cv::COLOR_RGB2BGR);
-        image im = mat_to_image(new_img);
-
-        //show_image_cv(im, "im");
-        //show_image_mat(*in_img, "in_img");
-        return im;
-    }
-    // ----------------------------------------
-
-    extern "C" image get_image_from_stream_letterbox(cap_cv *cap, int w, int h, int c, mat_cv **in_img, int dont_close)
-    {
-        c = c ? c : 3;
-        cv::Mat *src = NULL;
-        static int once = 1;
-        if (once)
-        {
-            once = 0;
-            do
-            {
-                if (src)
-                    delete src;
-                src = (cv::Mat *)get_capture_frame_cv(cap);
-                if (!src)
-                    return make_empty_image(0, 0, 0);
-            } while (src->cols < 1 || src->rows < 1 || src->channels() < 1);
-            printf("Video stream: %d x %d \n", src->cols, src->rows);
-        }
-        else
-            src = (cv::Mat *)get_capture_frame_cv(cap);
-
-        if (!wait_for_stream(cap, src, dont_close))
-            return make_empty_image(0, 0, 0); // passes (cv::Mat *)src while should be (cv::Mat **)src
-
-        *in_img = (mat_cv *)new cv::Mat(src->rows, src->cols, CV_8UC(c));
-        cv::resize(*src, **(cv::Mat **)in_img, (*(cv::Mat **)in_img)->size(), 0, 0, cv::INTER_LINEAR);
-
-        if (c > 1)
-            cv::cvtColor(*src, *src, cv::COLOR_RGB2BGR);
-        image tmp = mat_to_image(*src);
-        image im = letterbox_image(tmp, w, h);
-        free_image(tmp);
-        release_mat((mat_cv **)&src);
-
-        //show_image_cv(im, "im");
-        //show_image_mat(*in_img, "in_img");
-        return im;
-    }
-    // ----------------------------------------
-
-    // ====================================================================
-    // Image Saving
-    // ====================================================================
-    extern int stbi_write_png(char const *filename, int w, int h, int comp, const void *data, int stride_in_bytes);
-    extern int stbi_write_jpg(char const *filename, int x, int y, int comp, const void *data, int quality);
-
-    extern "C" void save_mat_png(cv::Mat img_src, const char *name)
-    {
-        cv::Mat img_rgb;
-        if (img_src.channels() >= 3)
-            cv::cvtColor(img_src, img_rgb, cv::COLOR_RGB2BGR);
-        stbi_write_png(name, img_rgb.cols, img_rgb.rows, 3, (char *)img_rgb.data, 0);
-    }
-    // ----------------------------------------
-
-    extern "C" void save_mat_jpg(cv::Mat img_src, const char *name)
-    {
-        cv::Mat img_rgb;
-        if (img_src.channels() >= 3)
-            cv::cvtColor(img_src, img_rgb, cv::COLOR_RGB2BGR);
-        stbi_write_jpg(name, img_rgb.cols, img_rgb.rows, 3, (char *)img_rgb.data, 80);
-    }
-    // ----------------------------------------
-
-    extern "C" void save_cv_png(mat_cv *img_src, const char *name)
-    {
-        cv::Mat *img = (cv::Mat *)img_src;
-        save_mat_png(*img, name);
-    }
-    // ----------------------------------------
-
-    extern "C" void save_cv_jpg(mat_cv *img_src, const char *name)
-    {
-        cv::Mat *img = (cv::Mat *)img_src;
-        save_mat_jpg(*img, name);
-    }
-    // ----------------------------------------
-
-    // ====================================================================
-    // Draw Detection
-    // ====================================================================bool
-    float F = 4.15 / 1000;
-    float sd = 1.8;
-    bool check(int x1, int x2, int y1, int y2, int w1, int w2, int h1, int h2)
-    {
-        std::cout << " IN CHECK ";
-        if (x1 == x2 and y1 == y2)
-            return true;
-        std::cout<<" IN CHECK ";
-        float ed = sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
-        std::cout<<(ed)<<"\n";
-
-        float x_dist = abs(x1-x2);
-        float y_dist = abs(y1-y2);
-        float theta = atan(y_dist / x_dist);
-
-        float sd1 = h1 / 1.7 * cos(theta);
-        float sd2 = h2 / 1.7 * cos(theta);
-
-        if (ed > 0 && (sd1 + sd2) > ed)
-            return false;
-
-        /*float v1 = 1.6 * F / (F * h1 + 1.65);
-        float v2 = 1.6 * F / (F * h2 + 1.65);
-        float u1 = v1* 1.6/h1;
-        float vsd1, vsd2;
-        float x_dist = abs(x1 - x2);
-        float y_dist = abs(v1 - v2);
-        float theta = atan(y_dist / x_dist);
-        float vsd1sin, vsd1cos;
-        if ((v2 - v1) > 0)
-        {
-            vsd1sin = (F * (u1 + sd * sin(theta))) / (u1 + sd * sin(theta) + F) ;
-        }
-        else
-        {
-            vsd1sin = (F * (u1 - sd * sin(theta))) / (u1 - sd * sin(theta) + F) ;
-        }
-        vsd1cos = h1 * cos(theta) / 0.8;
-        float sd = sqrt(vsd1sin * vsd1sin + vsd1cos * vsd1cos);
-        float ed = sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (v1-v2)*(v1-v2));
-        if(ed>0 && ed<sd)
-            return false;*/
-        return true;
-    }
-    bool pointaboveline(float m, float c, int x1, int y1)
-    {
-        int y = (int)(m*x1 + c);
-      if(y1 >= y)
-        return true;
-      return false;
-    }
-    bool pointbelowline(float m, float c, int x1, int  y1)
-    {
-        int y = (int)(m*x1 + c);
-
-      if(y1 <= y)
-        return true;
-      return false;
-    }
-    void draw_zones(cv::Mat *mat, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2)
-    {
-        cv::Scalar color;
-        color.val[0] = 0;
-        color.val[1] = 256;
-        color.val[2] = 0;
-        cv::Point pt1, pt2;
-        
-        pt1.x = start_x1;
-        pt1.y = start_y1;
-        pt2.x = start_x2;
-        pt2.y = start_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-        pt1.x = end_x1;
-        pt1.y = end_y1;
-        pt2.x = end_x2;
-        pt2.y = end_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-        for(int i=0; i<zones; i++)
-        {
-            pt1.x = x1[i];
-            pt1.y = y1[i];
-            pt2.x = x2[i];
-            pt2.y = y2[i];
-             cv::line(*mat, pt1, pt2, color, 1, 8);
-        }
-
-        pt1.x = start_x1;
-        pt1.y = start_y1;
-        pt2.x = end_x1;
-        pt2.y = end_y1;
-             cv::line(*mat, pt1, pt2, color, 1, 8);
-
-        pt1.x = start_x2;
-        pt1.y = start_y2;
-        pt2.x = end_x2;
-        pt2.y = end_y2;
-             cv::line(*mat, pt1, pt2, color, 1, 8);
-    }
-    int find_zone(int find_x, int find_y, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, float *m, float* c)
-    {
-        if(pointaboveline(m[0], c[0], find_x, find_y))
-        {
-            cout<<"ZONE : "<<1<<endl;
-            return 1;
-        }
-        for(int i=0; i<(zones-2); i++)
-        {
-            if(pointbelowline(m[i+1], c[i], find_x, find_y) && pointaboveline(m[i], c[i], find_x, find_y))
-            {
-                cout<<"ZONE : "<<i+2<<endl;
-                return i+2;
+                    printf("\n");
             }
         }
-        return zones;
     }
-    void draw_zone1(cv::Mat *mat, int zone_no, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, float *m, float* c)
-    {
-        cv::Scalar color;
-        color.val[0] = 255;
-        color.val[1] = 0;
-        color.val[2] = 0;
-        cv::Point pt1, pt2;
-        
-        if(zone_no == 1)
-        {
-            pt1.x = start_x1;
-            pt1.y = start_y1;
-            pt2.x = start_x2;
-            pt2.y = start_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
 
-            pt1.x = start_x1;
-            pt1.y = start_y1;
-            pt2.x = x1[0];
-            pt2.y = y1[0];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
+    // image output
+    qsort(selected_detections, selected_detections_num, sizeof(*selected_detections), compare_by_probs);
+    for (i = 0; i < selected_detections_num; ++i) {
+            int width = im.h * .002;
+            if (width < 1)
+                width = 1;
 
-            pt1.x = x1[0];
-            pt1.y = y1[0];
-            pt2.x = x2[0];
-            pt2.y = y2[0];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt2.x = x2[0];
-            pt2.y = y2[0];
-            pt2.x = start_x2;
-            pt2.y = start_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-        } else if(zone_no == zones)
-        {
-            pt1.x = end_x1;
-            pt1.y = end_y1;
-            pt2.x = end_x2;
-            pt2.y = end_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = end_x1;
-            pt1.y = end_y1;
-            pt2.x = x1[zones-2];
-            pt2.y = y1[zones-2];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = x1[zones-2];
-            pt1.y = y1[zones-2];
-            pt2.x = x2[zones-2];
-            pt2.y = y2[zones-2];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt2.x = x2[zones-2];
-            pt2.y = y2[zones-2];
-            pt2.x = end_x2;
-            pt2.y = end_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-        } else
-        {
-            pt1.x = x1[zone_no-2];
-            pt1.y = y1[zone_no-2];
-            pt2.x = x2[zone_no-2];
-            pt2.y = y2[zone_no-2];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = x1[zone_no-2];
-            pt1.y = y1[zone_no-2];
-            pt2.x = x1[zone_no-1];
-            pt2.y = y1[zone_no-1];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = x2[zone_no-2];
-            pt1.y = y2[zone_no-2];
-            pt2.x = x2[zone_no-1];
-            pt2.y = y2[zone_no-1];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = x1[zone_no-1];
-            pt1.y = y1[zone_no-1];
-            pt2.x = x2[zone_no-1];
-            pt2.y = y2[zone_no-1];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-        }
-
-    }
-    long min_x = 100000, min_y = 100000, max_x = -1, max_y = -1;
-    extern "C" void draw_detections_cv_v3(mat_cv *mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
-    {
-        cout<<"ytjtyjdj";
-        ifstream in;
-        in.open("/content/darknet/floor_coordinates.txt");
-        std::cout<<"file opened";
-        bool modify;
-        //in>>modify>>min_x>>min_y>>max_x>>max_y;
-        int zones, start_x1, start_y1,start_x2, start_y2, end_x1, end_y1, end_x2, end_y2;
-        in>>zones>>start_x1>>start_y1>>start_x2>>start_y2;
-        int x1[zones-1], y1[zones-1], x2[zones-1], y2[zones-1];
-        float m[zones-1], c[zones-1];
-        for(int i=0; i<(zones-1); i++)
-        {
-            in>>x1[i]>>y1[i]>>x2[i]>>y2[i]>>m[i]>>c[i];
-        }
-        in>>end_x1>>end_y1>>end_x2>>end_y2;
-        in.close();
-        
-        int xywh[num][4];
-        try
-        {
-            cv::Mat *show_img = (cv::Mat *)mat;
-            draw_zones(show_img, start_x1, start_y1,start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, y1, x2, y2);
-
-            int i, j;
-            if (!show_img)
-                return;
-            static int frame_id = 0;
-            frame_id++;
-
-            int ppl = 0;
-            for (i = 0; i < num; ++i)
-            {
-
-                char labelstr[4096] = {0};
-                int class_id = -1;
-                for (j = 0; j < classes; ++j)
-                {
-                    int show = strncmp(names[j], "dont_show", 9);
-                    std::cout << dets[i].prob[j] << " " << thresh << " " << show << "\n";
-
-                    if (dets[i].prob[j] > thresh && show)
-                    {
-                        if (class_id < 0)
-                        {
-                            strcat(labelstr, names[j]);
-                            class_id = j;
-                            char buff[10];
-                            sprintf(buff, " (%2.0f%%)", dets[i].prob[j] * 100);
-                            strcat(labelstr, buff);
-                            printf("%s: %.0f%% ", names[j], dets[i].prob[j] * 100);
-                        }
-                        else
-                        {
-                            strcat(labelstr, ", ");
-                            strcat(labelstr, names[j]);
-                            printf(", %s: %.0f%% ", names[j], dets[i].prob[j] * 100);
-                        }
-                    }
-                }
-                if (class_id >= 0)
-                {
-                    int width = std::max(1.0f, show_img->rows * .002f);
-
-                    //if(0){
-                    //width = pow(prob, 1./2.)*10+1;
-                    //alphabet = 0;
-                    //}
-
-                    //printf("%d %s: %.0f%%\n", i, names[class_id], prob*100);
-                    int offset = class_id * 123457 % classes;
-                    float red = get_color(2, offset, classes);
-                    float green = get_color(1, offset, classes);
-                    float blue = get_color(0, offset, classes);
-                    float rgb[3];
-
-                    //width = prob*20+2;
-
-                    rgb[0] = red;
-                    rgb[1] = green;
-                    rgb[2] = blue;
-                    box b = dets[i].bbox;
-                    if (std::isnan(b.w) || std::isinf(b.w))
-                        b.w = 0.5;
-                    if (std::isnan(b.h) || std::isinf(b.h))
-                        b.h = 0.5;
-                    if (std::isnan(b.x) || std::isinf(b.x))
-                        b.x = 0.5;
-                    if (std::isnan(b.y) || std::isinf(b.y))
-                        b.y = 0.5;
-                    b.w = (b.w < 1) ? b.w : 1;
-                    b.h = (b.h < 1) ? b.h : 1;
-                    b.x = (b.x < 1) ? b.x : 1;
-                    b.y = (b.y < 1) ? b.y : 1;
-                    //printf("%f %f %f %f\n", b.x, b.y, b.w, b.h);
-
-                    int left = (b.x - b.w / 2.) * show_img->cols;
-                    int right = (b.x + b.w / 2.) * show_img->cols;
-                    int top = (b.y - b.h / 2.) * show_img->rows;
-                    int bot = (b.y + b.h / 2.) * show_img->rows;
-
-                    if (left < 0)
-                        left = 0;
-                    if (right > show_img->cols - 1)
-                        right = show_img->cols - 1;
-                    if (top < 0)
-                        top = 0;
-                    if (bot > show_img->rows - 1)
-                        bot = show_img->rows - 1;
-
-                    if (class_id == 2)
-                    {
-                        xywh[ppl][0] = left;
-                        xywh[ppl][1] = top;
-                        xywh[ppl][2] = right - left;
-                        xywh[ppl][3] = bot - top;
-                        /*if(left<lu_x && bot<lu_y)
-                        {
-                            lu_x = left;
-                            lu_y = bot;
-                            modify = true;
-                        }
-                        if(left<ld_x && bot>ld_y)
-                        {
-                            ld_x = left;
-                            ld_y = bot;
-                            modify = true;
-                        }
-                        if(right>ru_x && bot<ru_y)
-                        {
-                            ru_x = right;
-                            ru_y = bot;
-                            modify = true;
-                        }
-                        if(right>ru_x && bot>ru_y)
-                        {
-                            ru_x = right;
-                            ru_y = bot;
-                            modify = true;
-                        }*/
-                        ppl++;
-                    }
-                }
+            /*
+            if(0){
+            width = pow(prob, 1./2.)*10+1;
+            alphabet = 0;
             }
-            /*ofstream os;
-            os.open("floor_coordinates.txt"); 
-            std::cout<<"file opened";
-            os<<modify<<" "<<lu_x<<" "<<lu_y<<" "<<ld_x<<" "<<ld_y<<" "<<ru_x<<" "<<ru_y<<" "<<rd_x<<" "<<rd_y;
+            */
 
-            //os<<modify<<" "<<min_x<<" "<<min_y<<" "<<max_x<<" "<<max_y;
-            os.close();*/
-            
-            std::cout << ppl << std::endl;
-            int zone_count[zones];
-            for(int i=0; i<zones; i++)
-            {
-                zone_count[i] = 0;
-            }
-            bool sd_main[ppl];
-            for (int l = 0; l < ppl; l++)
-            {
-                bool truth = true;
-                for (int k = 0; k < ppl; k++)
-                {
-                    bool sd = check(xywh[l][0], xywh[k][0], xywh[l][1], xywh[k][1], xywh[l][2], xywh[k][3], xywh[l][3], xywh[k][3]); //x1, x2, y1, y2, w1, w2, h1, h2
-                    std::cout << l << " -> " << k << " = " << sd << "\n";
-                    if (!sd)
-                    {
-                        int curr_zone = find_zone(xywh[l][0], xywh[l][1], start_x1, start_y1, start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, x2, y1, y2, m, c);
-                        if(zone_count[curr_zone]==0)
-                        {
-                            draw_zone1(show_img, curr_zone, start_x1, start_y1, start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, x2, y1, y2, m, c);
-                        } else
-                        {
-                            zone_count[curr_zone]++;
-                        }
-                        truth = false;
-                        break;
-                    }
-                }
-                sd_main[l] = truth;
-            }
-            std::cout << "out of loop \n";
+            //printf("%d %s: %.0f%%\n", i, names[selected_detections[i].best_class], prob*100);
+            int offset = selected_detections[i].best_class * 123457 % classes;
+            float red = get_color(2, offset, classes);
+            float green = get_color(1, offset, classes);
+            float blue = get_color(0, offset, classes);
+            float rgb[3];
+
+            //width = prob*20+2;
+
+            rgb[0] = red;
+            rgb[1] = green;
+            rgb[2] = blue;
+            box b = selected_detections[i].det.bbox;
+            //printf("%f %f %f %f\n", b.x, b.y, b.w, b.h);
+
+            int left = (b.x - b.w / 2.)*im.w;
+            int right = (b.x + b.w / 2.)*im.w;
+            int top = (b.y - b.h / 2.)*im.h;
+            int bot = (b.y + b.h / 2.)*im.h;
+
+            if (left < 0) left = 0;
+            if (right > im.w - 1) right = im.w - 1;
+            if (top < 0) top = 0;
+            if (bot > im.h - 1) bot = im.h - 1;
+
             //int b_x_center = (left + right) / 2;
             //int b_y_center = (top + bot) / 2;
             //int b_width = right - left;
             //int b_height = bot - top;
             //sprintf(labelstr, "%d x %d - w: %d, h: %d", b_x_center, b_y_center, b_width, b_height);
-            int counter = 0;
-            for (i = 0; i < num; ++i)
-            {
-                char labelstr[4096] = {0};
-                int class_id = -1;
-                std::cout << classes << "\n";
-                for (j = 0; j < classes; ++j)
-                {
-                    int show = strncmp(names[j], "dont_show", 9);
-                    std::cout << dets[i].prob[j] << " " << thresh << " " << show << "\n";
 
-                    if (dets[i].prob[j] > thresh && show)
-                    {
-                        std::cout << "IN IF1\n";
-                        if (class_id < 0)
-                        {
-                            std::cout << "IN IF2\n";
-                            strcat(labelstr, names[j]);
-                            std::cout << "IN IF2 a\n";
-                            class_id = j;
-                            char buff[10];
-                            std::cout << dets[i].prob[j];
-                            printf(buff, " (%2.0f%%)", dets[i].prob[j] * 100);
-                            strcat(labelstr, buff);
-                            printf("%s: %.0f%% ", names[j], dets[i].prob[j] * 100);
-                        }
-                        else
-                        {
-                            strcat(labelstr, ", ");
-                            strcat(labelstr, names[j]);
-                            std::cout << labelstr << "\n";
-                            printf(", %s: %.0f%% ", names[j], dets[i].prob[j] * 100);
-                        }
+            // you should create directory: result_img
+            //static int copied_frame_id = -1;
+            //static image copy_img;
+            //if (copied_frame_id != frame_id) {
+            //    copied_frame_id = frame_id;
+            //    if (copy_img.data) free_image(copy_img);
+            //    copy_img = copy_image(im);
+            //}
+            //image cropped_im = crop_image(copy_img, left, top, right - left, bot - top);
+            //static int img_id = 0;
+            //img_id++;
+            //char image_name[1024];
+            //int best_class_id = selected_detections[i].best_class;
+            //sprintf(image_name, "result_img/img_%d_%d_%d_%s.jpg", frame_id, img_id, best_class_id, names[best_class_id]);
+            //save_image(cropped_im, image_name);
+            //free_image(cropped_im);
+
+            if (im.c == 1) {
+                draw_box_width_bw(im, left, top, right, bot, width, 0.8);    // 1 channel Black-White
+            }
+            else {
+                draw_box_width(im, left, top, right, bot, width, red, green, blue); // 3 channels RGB
+            }
+            if (alphabet) {
+                char labelstr[4096] = { 0 };
+                strcat(labelstr, names[selected_detections[i].best_class]);
+                int j;
+                for (j = 0; j < classes; ++j) {
+                    if (selected_detections[i].det.prob[j] > thresh && j != selected_detections[i].best_class) {
+                        strcat(labelstr, ", ");
+                        strcat(labelstr, names[j]);
                     }
                 }
-                
-                if (class_id >= 0)
-                {
-                    int width = std::max(1.0f, show_img->rows * .002f);
-                    std::cout << "IN IF\n";
-                    //if(0){
-                    //width = pow(prob, 1./2.)*10+1;
-                    //alphabet = 0;
-                    //}
-
-                    //printf("%d %s: %.0f%%\n", i, names[class_id], prob*100);
-                    int offset = class_id * 123457 % classes;
-                    float red = get_color(2, offset, classes);
-                    float green = get_color(1, offset, classes);
-                    float blue = get_color(0, offset, classes);
-
-                    if (class_id == 2)
-                    {
-                        std::cout << "changecol" << counter << "\n";
-                        if (!sd_main[counter])
-                        {
-                            red = 1;
-                            green = 0;
-                            blue = 0;
-
-                            string s = "No SD";
-                            strcpy(labelstr, s.c_str());
-                        }
-                        else
-                        {
-                            string s = "SD";
-                            strcpy(labelstr, s.c_str());
-                            red = 0;
-                            green = 1;
-                            blue = 0;
-                        }
-                        std::cout << "out of detection " << labelstr;
-                        counter++;
-                    }
-                    float rgb[3];
-
-                    //width = prob*20+2;
-
-                    rgb[0] = red;
-                    rgb[1] = green;
-                    rgb[2] = blue;
-                    box b = dets[i].bbox;
-                    if (std::isnan(b.w) || std::isinf(b.w))
-                        b.w = 0.5;
-                    if (std::isnan(b.h) || std::isinf(b.h))
-                        b.h = 0.5;
-                    if (std::isnan(b.x) || std::isinf(b.x))
-                        b.x = 0.5;
-                    if (std::isnan(b.y) || std::isinf(b.y))
-                        b.y = 0.5;
-                    b.w = (b.w < 1) ? b.w : 1;
-                    b.h = (b.h < 1) ? b.h : 1;
-                    b.x = (b.x < 1) ? b.x : 1;
-                    b.y = (b.y < 1) ? b.y : 1;
-                    //printf("%f %f %f %f\n", b.x, b.y, b.w, b.h);
-
-                    int left = (b.x - b.w / 2.) * show_img->cols;
-                    int right = (b.x + b.w / 2.) * show_img->cols;
-                    int top = (b.y - b.h / 2.) * show_img->rows;
-                    int bot = (b.y + b.h / 2.) * show_img->rows;
-
-                    if (left < 0)
-                        left = 0;
-                    if (right > show_img->cols - 1)
-                        right = show_img->cols - 1;
-                    if (top < 0)
-                        top = 0;
-                    if (bot > show_img->rows - 1)
-                        bot = show_img->rows - 1;
-                    float const font_size = show_img->rows / 1000.F;
-                    cv::Size const text_size = cv::getTextSize(labelstr, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, 1, 0);
-                    cv::Point pt1, pt2, pt_text, pt_text_bg1, pt_text_bg2;
-
-                    pt1.x = left;
-                    pt1.y = top;
-                    pt2.x = right;
-                    pt2.y = bot;
-                    pt_text.x = left;
-                    pt_text.y = top - 4; // 12;
-                    pt_text_bg1.x = left;
-                    pt_text_bg1.y = top - (3 + 18 * font_size);
-                    pt_text_bg2.x = right;
-                    if ((right - left) < text_size.width)
-                        pt_text_bg2.x = left + text_size.width;
-                    pt_text_bg2.y = top;
-                    cv::Scalar color;
-                    color.val[0] = red * 256;
-                    color.val[1] = green * 256;
-                    color.val[2] = blue * 256;
-
-                    // you should create directory: result_img
-                    //static int copied_frame_id = -1;
-                    //static IplImage* copy_img = NULL;
-                    //if (copied_frame_id != frame_id) {
-                    //    copied_frame_id = frame_id;
-                    //    if(copy_img == NULL) copy_img = cvCreateImage(cvSize(show_img->width, show_img->height), show_img->depth, show_img->nChannels);
-                    //    cvCopy(show_img, copy_img, 0);
-                    //}
-                    //static int img_id = 0;         
-                    //img_id++;
-                    //char image_name[1024];
-                    //sprintf(image_name, "result_img/img_%d_%d_%d_%s.jpg", frame_id, img_id, class_id, names[class_id]);
-                    //CvRect rect = cvRect(pt1.x, pt1.y, pt2.x - pt1.x, pt2.y - pt1.y);
-                    //cvSetImageROI(copy_img, rect);
-                    //cvSaveImage(image_name, copy_img, 0);
-                    //cvResetImageROI(copy_img);
-
-                    cv::rectangle(*show_img, pt1, pt2, color, width, 8, 0);
-                    if (ext_output)
-                        printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
-                               (float)left, (float)top, b.w * show_img->cols, b.h * show_img->rows);
-                    else
-                        printf("\n");
-
-                    cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, width, 8, 0);
-                    cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, CV_FILLED, 8, 0); // filled
-                    cv::Scalar black_color = CV_RGB(0, 0, 0);
-                    cv::putText(*show_img, labelstr, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, black_color, 2 * font_size, CV_AA);
-                    // cv::FONT_HERSHEY_COMPLEX_SMALL, cv::FONT_HERSHEY_SIMPLEX
-                }
+                image label = get_label_v3(alphabet, labelstr, (im.h*.02));
+                //draw_label(im, top + width, left, label, rgb);
+                draw_weighted_label(im, top + width, left, label, rgb, 0.7);
+                free_image(label);
             }
-            if (ext_output)
-            {
-                fflush(stdout);
+            if (selected_detections[i].det.mask) {
+                image mask = float_to_image(14, 14, 1, selected_detections[i].det.mask);
+                image resized_mask = resize_image(mask, b.w*im.w, b.h*im.h);
+                image tmask = threshold_image(resized_mask, .5);
+                embed_image(tmask, im, left, top);
+                free_image(mask);
+                free_image(resized_mask);
+                free_image(tmask);
             }
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: draw_detections_cv_v3() \n";
-        }
     }
-    // ----------------------------------------
-
-    // ====================================================================
-    // Draw Loss & Accuracy chart
-    // ====================================================================
-    extern "C" mat_cv *draw_train_chart(char *windows_name, float max_img_loss, int max_batches, int number_of_lines, int img_size, int dont_show, char *chart_path)
-    {
-        int img_offset = 60;
-        int draw_size = img_size - img_offset;
-        cv::Mat *img_ptr = new cv::Mat(img_size, img_size, CV_8UC3, CV_RGB(255, 255, 255));
-        cv::Mat &img = *img_ptr;
-        cv::Point pt1, pt2, pt_text;
-
-        try
-        {
-            // load chart from file
-            if (chart_path != NULL && chart_path[0] != '\0')
-            {
-                *img_ptr = cv::imread(chart_path);
-            }
-            else
-            {
-                // draw new chart
-                char char_buff[100];
-                int i;
-                // vertical lines
-                pt1.x = img_offset;
-                pt2.x = img_size, pt_text.x = 30;
-                for (i = 1; i <= number_of_lines; ++i)
-                {
-                    pt1.y = pt2.y = (float)i * draw_size / number_of_lines;
-                    cv::line(img, pt1, pt2, CV_RGB(224, 224, 224), 1, 8, 0);
-                    if (i % 10 == 0)
-                    {
-                        sprintf(char_buff, "%2.1f", max_img_loss * (number_of_lines - i) / number_of_lines);
-                        pt_text.y = pt1.y + 3;
-
-                        cv::putText(img, char_buff, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
-                        cv::line(img, pt1, pt2, CV_RGB(128, 128, 128), 1, 8, 0);
-                    }
-                }
-                // horizontal lines
-                pt1.y = draw_size;
-                pt2.y = 0, pt_text.y = draw_size + 15;
-                for (i = 0; i <= number_of_lines; ++i)
-                {
-                    pt1.x = pt2.x = img_offset + (float)i * draw_size / number_of_lines;
-                    cv::line(img, pt1, pt2, CV_RGB(224, 224, 224), 1, 8, 0);
-                    if (i % 10 == 0)
-                    {
-                        sprintf(char_buff, "%d", max_batches * i / number_of_lines);
-                        pt_text.x = pt1.x - 20;
-                        cv::putText(img, char_buff, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
-                        cv::line(img, pt1, pt2, CV_RGB(128, 128, 128), 1, 8, 0);
-                    }
-                }
-
-                cv::putText(img, "Loss", cv::Point(10, 55), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 255), 1, CV_AA);
-                cv::putText(img, "Iteration number", cv::Point(draw_size / 2, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
-                char max_batches_buff[100];
-                sprintf(max_batches_buff, "in cfg max_batches=%d", max_batches);
-                cv::putText(img, max_batches_buff, cv::Point(draw_size - 195, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
-                cv::putText(img, "Press 's' to save : chart.png", cv::Point(5, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
-            }
-
-            if (!dont_show)
-            {
-                printf(" If error occurs - run training with flag: -dont_show \n");
-                cv::namedWindow(windows_name, cv::WINDOW_NORMAL);
-                cv::moveWindow(windows_name, 0, 0);
-                cv::resizeWindow(windows_name, img_size, img_size);
-                cv::imshow(windows_name, img);
-                cv::waitKey(20);
-            }
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: draw_train_chart() \n";
-        }
-        return (mat_cv *)img_ptr;
-    }
-    // ----------------------------------------
-
-    extern "C" void draw_train_loss(char *windows_name, mat_cv *img_src, int img_size, float avg_loss, float max_img_loss, int current_batch, int max_batches,
-                                    float precision, int draw_precision, char *accuracy_name, int dont_show, int mjpeg_port, double time_remaining)
-    {
-        try
-        {
-            cv::Mat &img = *(cv::Mat *)img_src;
-            int img_offset = 60;
-            int draw_size = img_size - img_offset;
-            char char_buff[100];
-            cv::Point pt1, pt2;
-            pt1.x = img_offset + draw_size * (float)current_batch / max_batches;
-            pt1.y = draw_size * (1 - avg_loss / max_img_loss);
-            if (pt1.y < 0)
-                pt1.y = 1;
-            cv::circle(img, pt1, 1, CV_RGB(0, 0, 255), CV_FILLED, 8, 0);
-
-            // precision
-            if (draw_precision)
-            {
-                static float old_precision = 0;
-                static float max_precision = 0;
-                static int iteration_old = 0;
-                static int text_iteration_old = 0;
-                if (iteration_old == 0)
-                    cv::putText(img, accuracy_name, cv::Point(10, 12), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 0, 0), 1, CV_AA);
-
-                if (iteration_old != 0)
-                {
-                    cv::line(img,
-                             cv::Point(img_offset + draw_size * (float)iteration_old / max_batches, draw_size * (1 - old_precision)),
-                             cv::Point(img_offset + draw_size * (float)current_batch / max_batches, draw_size * (1 - precision)),
-                             CV_RGB(255, 0, 0), 1, 8, 0);
-                }
-
-                sprintf(char_buff, "%2.1f%% ", precision * 100);
-                cv::putText(img, char_buff, cv::Point(10, 28), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 255, 255), 5, CV_AA);
-                cv::putText(img, char_buff, cv::Point(10, 28), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, CV_AA);
-
-                if ((std::fabs(old_precision - precision) > 0.1) || (max_precision < precision) || (current_batch - text_iteration_old) >= max_batches / 10)
-                {
-                    text_iteration_old = current_batch;
-                    max_precision = std::max(max_precision, precision);
-                    sprintf(char_buff, "%2.0f%% ", precision * 100);
-                    cv::putText(img, char_buff, cv::Point(pt1.x - 30, draw_size * (1 - precision) + 15), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 255, 255), 5, CV_AA);
-                    cv::putText(img, char_buff, cv::Point(pt1.x - 30, draw_size * (1 - precision) + 15), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, CV_AA);
-                }
-                old_precision = precision;
-                iteration_old = current_batch;
-            }
-            sprintf(char_buff, "current avg loss = %2.4f    iteration = %d    approx. time left = %2.2f hours", avg_loss, current_batch, time_remaining);
-            pt1.x = 15, pt1.y = draw_size + 18;
-            pt2.x = pt1.x + 800, pt2.y = pt1.y + 20;
-            cv::rectangle(img, pt1, pt2, CV_RGB(255, 255, 255), CV_FILLED, 8, 0);
-            pt1.y += 15;
-            cv::putText(img, char_buff, pt1, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 100), 1, CV_AA);
-
-            int k = 0;
-            if (!dont_show)
-            {
-                cv::imshow(windows_name, img);
-                k = cv::waitKey(20);
-            }
-            static int old_batch = 0;
-            if (k == 's' || current_batch == (max_batches - 1) || (current_batch / 100 > old_batch / 100))
-            {
-                old_batch = current_batch;
-                save_mat_png(img, "chart.png");
-                save_mat_png(img, windows_name);
-                cv::putText(img, "- Saved", cv::Point(260, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 0, 0), 1, CV_AA);
-            }
-            else
-                cv::putText(img, "- Saved", cv::Point(260, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 255, 255), 1, CV_AA);
-
-            if (mjpeg_port > 0)
-                send_mjpeg((mat_cv *)&img, mjpeg_port, 500000, 70);
-        }
-        catch (...)
-        {
-            cerr << "OpenCV exception: draw_train_loss() \n";
-        }
-    }
-    // ----------------------------------------
-
-    // ====================================================================
-    // Data augmentation
-    // ====================================================================
-
-    extern "C" image image_data_augmentation(mat_cv *mat, int w, int h,
-                                             int pleft, int ptop, int swidth, int sheight, int flip,
-                                             float dhue, float dsat, float dexp,
-                                             int gaussian_noise, int blur, int num_boxes, float *truth)
-    {
-        image out;
-        try
-        {
-            cv::Mat img = *(cv::Mat *)mat;
-
-            // crop
-            cv::Rect src_rect(pleft, ptop, swidth, sheight);
-            cv::Rect img_rect(cv::Point2i(0, 0), img.size());
-            cv::Rect new_src_rect = src_rect & img_rect;
-
-            cv::Rect dst_rect(cv::Point2i(std::max<int>(0, -pleft), std::max<int>(0, -ptop)), new_src_rect.size());
-            cv::Mat sized;
-
-            if (src_rect.x == 0 && src_rect.y == 0 && src_rect.size() == img.size())
-            {
-                cv::resize(img, sized, cv::Size(w, h), 0, 0, cv::INTER_LINEAR);
-            }
-            else
-            {
-                cv::Mat cropped(src_rect.size(), img.type());
-                //cropped.setTo(cv::Scalar::all(0));
-                cropped.setTo(cv::mean(img));
-
-                img(new_src_rect).copyTo(cropped(dst_rect));
-
-                // resize
-                cv::resize(cropped, sized, cv::Size(w, h), 0, 0, cv::INTER_LINEAR);
-            }
-
-            // flip
-            if (flip)
-            {
-                cv::Mat cropped;
-                cv::flip(sized, cropped, 1); // 0 - x-axis, 1 - y-axis, -1 - both axes (x & y)
-                sized = cropped.clone();
-            }
-
-            // HSV augmentation
-            // cv::COLOR_BGR2HSV, cv::COLOR_RGB2HSV, cv::COLOR_HSV2BGR, cv::COLOR_HSV2RGB
-            if (dsat != 1 || dexp != 1 || dhue != 0)
-            {
-                if (img.channels() >= 3)
-                {
-                    cv::Mat hsv_src;
-                    cvtColor(sized, hsv_src, cv::COLOR_RGB2HSV); // RGB to HSV
-
-                    std::vector<cv::Mat> hsv;
-                    cv::split(hsv_src, hsv);
-
-                    hsv[1] *= dsat;
-                    hsv[2] *= dexp;
-                    hsv[0] += 179 * dhue;
-
-                    cv::merge(hsv, hsv_src);
-
-                    cvtColor(hsv_src, sized, cv::COLOR_HSV2RGB); // HSV to RGB (the same as previous)
-                }
-                else
-                {
-                    sized *= dexp;
-                }
-            }
-
-            //std::stringstream window_name;
-            //window_name << "augmentation - " << ipl;
-            //cv::imshow(window_name.str(), sized);
-            //cv::waitKey(0);
-
-            if (blur)
-            {
-                cv::Mat dst(sized.size(), sized.type());
-                if (blur == 1)
-                {
-                    cv::GaussianBlur(sized, dst, cv::Size(17, 17), 0);
-                    //cv::bilateralFilter(sized, dst, 17, 75, 75);
-                }
-                else
-                {
-                    int ksize = (blur / 2) * 2 + 1;
-                    cv::Size kernel_size = cv::Size(ksize, ksize);
-                    cv::GaussianBlur(sized, dst, kernel_size, 0);
-                    //cv::medianBlur(sized, dst, ksize);
-                    //cv::bilateralFilter(sized, dst, ksize, 75, 75);
-
-                    // sharpen
-                    //cv::Mat img_tmp;
-                    //cv::GaussianBlur(dst, img_tmp, cv::Size(), 3);
-                    //cv::addWeighted(dst, 1.5, img_tmp, -0.5, 0, img_tmp);
-                    //dst = img_tmp;
-                }
-                //std::cout << " blur num_boxes = " << num_boxes << std::endl;
-
-                if (blur == 1)
-                {
-                    cv::Rect img_rect(0, 0, sized.cols, sized.rows);
-                    int t;
-                    for (t = 0; t < num_boxes; ++t)
-                    {
-                        box b = float_to_box_stride(truth + t * (4 + 1), 1);
-                        if (!b.x)
-                            break;
-                        int left = (b.x - b.w / 2.) * sized.cols;
-                        int width = b.w * sized.cols;
-                        int top = (b.y - b.h / 2.) * sized.rows;
-                        int height = b.h * sized.rows;
-                        cv::Rect roi(left, top, width, height);
-                        roi = roi & img_rect;
-
-                        sized(roi).copyTo(dst(roi));
-                    }
-                }
-                dst.copyTo(sized);
-            }
-
-            if (gaussian_noise)
-            {
-                cv::Mat noise = cv::Mat(sized.size(), sized.type());
-                gaussian_noise = std::min(gaussian_noise, 127);
-                gaussian_noise = std::max(gaussian_noise, 0);
-                cv::randn(noise, 0, gaussian_noise); //mean and variance
-                cv::Mat sized_norm = sized + noise;
-                //cv::normalize(sized_norm, sized_norm, 0.0, 255.0, cv::NORM_MINMAX, sized.type());
-                //cv::imshow("source", sized);
-                //cv::imshow("gaussian noise", sized_norm);
-                //cv::waitKey(0);
-                sized = sized_norm;
-            }
-
-            //char txt[100];
-            //sprintf(txt, "blur = %d", blur);
-            //cv::putText(sized, txt, cv::Point(100, 100), cv::FONT_HERSHEY_COMPLEX_SMALL, 1.7, CV_RGB(255, 0, 0), 1, CV_AA);
-
-            // Mat -> image
-            out = mat_to_image(sized);
-        }
-        catch (...)
-        {
-            cerr << "OpenCV can't augment image: " << w << " x " << h << " \n";
-            out = mat_to_image(*(cv::Mat *)mat);
-        }
-        return out;
-    }
-
-    // blend two images with (alpha and beta)
-    extern "C" void blend_images_cv(image new_img, float alpha, image old_img, float beta)
-    {
-        cv::Mat new_mat(cv::Size(new_img.w, new_img.h), CV_32FC(new_img.c), new_img.data); // , size_t step = AUTO_STEP)
-        cv::Mat old_mat(cv::Size(old_img.w, old_img.h), CV_32FC(old_img.c), old_img.data);
-        cv::addWeighted(new_mat, alpha, old_mat, beta, 0.0, new_mat);
-    }
-
-    // bilateralFilter bluring
-    extern "C" image blur_image(image src_img, int ksize)
-    {
-        cv::Mat src = image_to_mat(src_img);
-        cv::Mat dst;
-        cv::Size kernel_size = cv::Size(ksize, ksize);
-        cv::GaussianBlur(src, dst, kernel_size, 0);
-        //cv::bilateralFilter(src, dst, ksize, 75, 75);
-        image dst_img = mat_to_image(dst);
-        return dst_img;
-    }
-
-    // ====================================================================
-    // Draw object - adversarial attack dnn
-    // ====================================================================
-
-    std::atomic<int> x_start, y_start;
-    std::atomic<int> x_end, y_end;
-    std::atomic<int> x_size, y_size;
-    std::atomic<bool> draw_select, selected;
-
-    void callback_mouse_click(int event, int x, int y, int flags, void *user_data)
-    {
-        if (event == cv::EVENT_LBUTTONDOWN)
-        {
-            draw_select = true;
-            selected = false;
-            x_start = x;
-            y_start = y;
-
-            //if (prev_img_rect.contains(Point2i(x, y))) add_id_img = -1;
-            //else if (next_img_rect.contains(Point2i(x, y))) add_id_img = 1;
-            //else add_id_img = 0;
-            //std::cout << "cv::EVENT_LBUTTONDOWN \n";
-        }
-        else if (event == cv::EVENT_LBUTTONUP)
-        {
-            x_size = abs(x - x_start);
-            y_size = abs(y - y_start);
-            x_end = std::max(x, 0);
-            y_end = std::max(y, 0);
-            draw_select = false;
-            selected = true;
-            //std::cout << "cv::EVENT_LBUTTONUP \n";
-        }
-        else if (event == cv::EVENT_MOUSEMOVE)
-        {
-            x_size = abs(x - x_start);
-            y_size = abs(y - y_start);
-            x_end = std::max(x, 0);
-            y_end = std::max(y, 0);
-        }
-    }
-
-    extern "C" void cv_draw_object(image sized, float *truth_cpu, int max_boxes, int num_truth, int *it_num_set, float *lr_set, int *boxonly, int classes, char **names)
-    {
-        cv::Mat frame = image_to_mat(sized);
-        if (frame.channels() == 3)
-            cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
-        cv::Mat frame_clone = frame.clone();
-
-        std::string const window_name = "Marking image";
-        cv::namedWindow(window_name, cv::WINDOW_NORMAL);
-        cv::resizeWindow(window_name, 1280, 720);
-        cv::imshow(window_name, frame);
-        cv::moveWindow(window_name, 0, 0);
-        cv::setMouseCallback(window_name, callback_mouse_click);
-
-        int it_trackbar_value = 200;
-        std::string const it_trackbar_name = "iterations";
-        int it_tb_res = cv::createTrackbar(it_trackbar_name, window_name, &it_trackbar_value, 1000);
-
-        int lr_trackbar_value = 10;
-        std::string const lr_trackbar_name = "learning_rate exp";
-        int lr_tb_res = cv::createTrackbar(lr_trackbar_name, window_name, &lr_trackbar_value, 20);
-
-        int cl_trackbar_value = 0;
-        std::string const cl_trackbar_name = "class_id";
-        int cl_tb_res = cv::createTrackbar(cl_trackbar_name, window_name, &cl_trackbar_value, classes - 1);
-
-        std::string const bo_trackbar_name = "box-only";
-        int bo_tb_res = cv::createTrackbar(bo_trackbar_name, window_name, boxonly, 1);
-
-        int i = 0;
-
-        while (!selected)
-        {
-#ifndef CV_VERSION_EPOCH
-            int pressed_key = cv::waitKeyEx(20); // OpenCV 3.x
-#else
-            int pressed_key = cv::waitKey(20); // OpenCV 2.x
-#endif
-            if (pressed_key == 27 || pressed_key == 1048603)
-                break; // break;  // ESC - save & exit
-
-            frame_clone = frame.clone();
-            char buff[100];
-            std::string lr_value = "learning_rate = " + std::to_string(1.0 / pow(2, lr_trackbar_value));
-            cv::putText(frame_clone, lr_value, cv::Point2i(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(10, 50, 10), 3);
-            cv::putText(frame_clone, lr_value, cv::Point2i(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(20, 120, 60), 2);
-            cv::putText(frame_clone, lr_value, cv::Point2i(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(50, 200, 100), 1);
-
-            if (names)
-            {
-                std::string obj_name = names[cl_trackbar_value];
-                cv::putText(frame_clone, obj_name, cv::Point2i(10, 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(10, 50, 10), 3);
-                cv::putText(frame_clone, obj_name, cv::Point2i(10, 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(20, 120, 60), 2);
-                cv::putText(frame_clone, obj_name, cv::Point2i(10, 40), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(50, 200, 100), 1);
-            }
-
-            if (draw_select)
-            {
-                cv::Rect selected_rect(
-                    cv::Point2i((int)min(x_start, x_end), (int)min(y_start, y_end)),
-                    cv::Size(x_size, y_size));
-
-                rectangle(frame_clone, selected_rect, cv::Scalar(150, 200, 150));
-            }
-
-            cv::imshow(window_name, frame_clone);
-        }
-
-        if (selected)
-        {
-            cv::Rect selected_rect(
-                cv::Point2i((int)min(x_start, x_end), (int)min(y_start, y_end)),
-                cv::Size(x_size, y_size));
-
-            printf(" x_start = %d, y_start = %d, x_size = %d, y_size = %d \n",
-                   x_start.load(), y_start.load(), x_size.load(), y_size.load());
-
-            rectangle(frame, selected_rect, cv::Scalar(150, 200, 150));
-            cv::imshow(window_name, frame);
-            cv::waitKey(100);
-
-            float width = x_end - x_start;
-            float height = y_end - y_start;
-
-            float const relative_center_x = (float)(x_start + width / 2) / frame.cols;
-            float const relative_center_y = (float)(y_start + height / 2) / frame.rows;
-            float const relative_width = (float)width / frame.cols;
-            float const relative_height = (float)height / frame.rows;
-
-            truth_cpu[i * 5 + 0] = relative_center_x;
-            truth_cpu[i * 5 + 1] = relative_center_y;
-            truth_cpu[i * 5 + 2] = relative_width;
-            truth_cpu[i * 5 + 3] = relative_height;
-            truth_cpu[i * 5 + 4] = cl_trackbar_value;
-        }
-
-        *it_num_set = it_trackbar_value;
-        *lr_set = 1.0 / pow(2, lr_trackbar_value);
-    }
-
-    // ====================================================================
-    // Show Anchors
-    // ====================================================================
-    extern "C" void show_acnhors(int number_of_boxes, int num_of_clusters, float *rel_width_height_array, model anchors_data, int width, int height)
-    {
-        cv::Mat labels = cv::Mat(number_of_boxes, 1, CV_32SC1);
-        cv::Mat points = cv::Mat(number_of_boxes, 2, CV_32FC1);
-        cv::Mat centers = cv::Mat(num_of_clusters, 2, CV_32FC1);
-
-        for (int i = 0; i < number_of_boxes; ++i)
-        {
-            points.at<float>(i, 0) = rel_width_height_array[i * 2];
-            points.at<float>(i, 1) = rel_width_height_array[i * 2 + 1];
-        }
-
-        for (int i = 0; i < num_of_clusters; ++i)
-        {
-            centers.at<float>(i, 0) = anchors_data.centers.vals[i][0];
-            centers.at<float>(i, 1) = anchors_data.centers.vals[i][1];
-        }
-
-        for (int i = 0; i < number_of_boxes; ++i)
-        {
-            labels.at<int>(i, 0) = anchors_data.assignments[i];
-        }
-
-        size_t img_size = 700;
-        cv::Mat img = cv::Mat(img_size, img_size, CV_8UC3);
-
-        for (int i = 0; i < number_of_boxes; ++i)
-        {
-            cv::Point pt;
-            pt.x = points.at<float>(i, 0) * img_size / width;
-            pt.y = points.at<float>(i, 1) * img_size / height;
-            int cluster_idx = labels.at<int>(i, 0);
-            int red_id = (cluster_idx * (uint64_t)123 + 55) % 255;
-            int green_id = (cluster_idx * (uint64_t)321 + 33) % 255;
-            int blue_id = (cluster_idx * (uint64_t)11 + 99) % 255;
-            cv::circle(img, pt, 1, CV_RGB(red_id, green_id, blue_id), CV_FILLED, 8, 0);
-            //if(pt.x > img_size || pt.y > img_size) printf("\n pt.x = %d, pt.y = %d \n", pt.x, pt.y);
-        }
-
-        for (int j = 0; j < num_of_clusters; ++j)
-        {
-            cv::Point pt1, pt2;
-            pt1.x = pt1.y = 0;
-            pt2.x = centers.at<float>(j, 0) * img_size / width;
-            pt2.y = centers.at<float>(j, 1) * img_size / height;
-            cv::rectangle(img, pt1, pt2, CV_RGB(255, 255, 255), 1, 8, 0);
-        }
-        save_mat_png(img, "cloud.png");
-        cv::imshow("clusters", img);
-        cv::waitKey(0);
-        cv::destroyAllWindows();
-    }
-
-    void show_opencv_info()
-    {
-        std::cerr << " OpenCV version: " << CV_VERSION_MAJOR << "." << CV_VERSION_MINOR << "." << CVAUX_STR(CV_VERSION_REVISION) OCV_D
-                  << std::endl;
-    }
-
-} // extern "C"
-#else  // OPENCV
-extern "C" void show_opencv_info()
-{
-    std::cerr << " OpenCV isn't used - data augmentation will be slow \n";
+    free(selected_detections);
 }
-extern "C" int wait_key_cv(int delay) { return 0; }
-extern "C" int wait_until_press_key_cv() { return 0; }
-extern "C" void destroy_all_windows_cv() {}
-#endif // OPENCV
+
+void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes)
+{
+    int i;
+    printf("draw_detections called\n");
+    int xywh[num][4];
+    
+    for(i = 0; i < num; ++i){
+        int class_id = max_index(probs[i], classes);
+        float prob = probs[i][class_id];
+        if(prob > thresh){
+
+            //// for comparison with OpenCV version of DNN Darknet Yolo v2
+            //printf("\n %f, %f, %f, %f, ", boxes[i].x, boxes[i].y, boxes[i].w, boxes[i].h);
+            // int k;
+            //for (k = 0; k < classes; ++k) {
+            //    printf("%f, ", probs[i][k]);
+            //}
+            //printf("\n");
+
+            int width = im.h * .012;
+            
+            if(0){
+                width = pow(prob, 1./2.)*10+1;
+                alphabet = 0;
+            }
+
+            int offset = class_id*123457 % classes;
+            float red = get_color(2,offset,classes);
+            float green = get_color(1,offset,classes);
+            float blue = get_color(0,offset,classes);
+            float rgb[3];
+
+            //width = prob*20+2;
+
+            rgb[0] = red;
+            rgb[1] = green;
+            rgb[2] = blue;
+            box b = boxes[i];
+
+            int left  = (b.x-b.w/2.)*im.w;
+            int right = (b.x+b.w/2.)*im.w;
+            int top   = (b.y-b.h/2.)*im.h;
+            int bot   = (b.y+b.h/2.)*im.h;
+
+            xywh[i][0] = b.x;
+            xywh[i][1] = b.y;
+            xywh[i][2] = b.w;
+            xywh[i][3] = b.h;
+             
+            if(left < 0) left = 0;
+            if(right > im.w-1) right = im.w-1;
+            if(top < 0) top = 0;
+            if(bot > im.h-1) bot = im.h-1;
+            printf("%s: %.0f%%", names[class_id], prob * 100);
+    
+            
+            //printf(" - id: %d, x_center: %d, y_center: %d, width: %d, height: %d",
+            //    class_id, (right + left) / 2, (bot - top) / 2, right - left, bot - top);
+
+            
+            printf("\n");
+            draw_box_width(im, left, top, right, bot, width, red, green, blue);
+            if (alphabet) {
+                image label = get_label(alphabet, names[class_id], (im.h*.03)/10);
+                draw_label(im, top + width, left, label, rgb);
+            }
+        }
+    }
+}
+
+void transpose_image(image im)
+{
+    assert(im.w == im.h);
+    int n, m;
+    int c;
+    for(c = 0; c < im.c; ++c){
+        for(n = 0; n < im.w-1; ++n){
+            for(m = n + 1; m < im.w; ++m){
+                float swap = im.data[m + im.w*(n + im.h*c)];
+                im.data[m + im.w*(n + im.h*c)] = im.data[n + im.w*(m + im.h*c)];
+                im.data[n + im.w*(m + im.h*c)] = swap;
+            }
+        }
+    }
+}
+
+void rotate_image_cw(image im, int times)
+{
+    assert(im.w == im.h);
+    times = (times + 400) % 4;
+    int i, x, y, c;
+    int n = im.w;
+    for(i = 0; i < times; ++i){
+        for(c = 0; c < im.c; ++c){
+            for(x = 0; x < n/2; ++x){
+                for(y = 0; y < (n-1)/2 + 1; ++y){
+                    float temp = im.data[y + im.w*(x + im.h*c)];
+                    im.data[y + im.w*(x + im.h*c)] = im.data[n-1-x + im.w*(y + im.h*c)];
+                    im.data[n-1-x + im.w*(y + im.h*c)] = im.data[n-1-y + im.w*(n-1-x + im.h*c)];
+                    im.data[n-1-y + im.w*(n-1-x + im.h*c)] = im.data[x + im.w*(n-1-y + im.h*c)];
+                    im.data[x + im.w*(n-1-y + im.h*c)] = temp;
+                }
+            }
+        }
+    }
+}
+
+void flip_image(image a)
+{
+    int i,j,k;
+    for(k = 0; k < a.c; ++k){
+        for(i = 0; i < a.h; ++i){
+            for(j = 0; j < a.w/2; ++j){
+                int index = j + a.w*(i + a.h*(k));
+                int flip = (a.w - j - 1) + a.w*(i + a.h*(k));
+                float swap = a.data[flip];
+                a.data[flip] = a.data[index];
+                a.data[index] = swap;
+            }
+        }
+    }
+}
+
+image image_distance(image a, image b)
+{
+    int i,j;
+    image dist = make_image(a.w, a.h, 1);
+    for(i = 0; i < a.c; ++i){
+        for(j = 0; j < a.h*a.w; ++j){
+            dist.data[j] += pow(a.data[i*a.h*a.w+j]-b.data[i*a.h*a.w+j],2);
+        }
+    }
+    for(j = 0; j < a.h*a.w; ++j){
+        dist.data[j] = sqrt(dist.data[j]);
+    }
+    return dist;
+}
+
+void embed_image(image source, image dest, int dx, int dy)
+{
+    int x,y,k;
+    for(k = 0; k < source.c; ++k){
+        for(y = 0; y < source.h; ++y){
+            for(x = 0; x < source.w; ++x){
+                float val = get_pixel(source, x,y,k);
+                set_pixel(dest, dx+x, dy+y, k, val);
+            }
+        }
+    }
+}
+
+image collapse_image_layers(image source, int border)
+{
+    int h = source.h;
+    h = (h+border)*source.c - border;
+    image dest = make_image(source.w, h, 1);
+    int i;
+    for(i = 0; i < source.c; ++i){
+        image layer = get_image_layer(source, i);
+        int h_offset = i*(source.h+border);
+        embed_image(layer, dest, 0, h_offset);
+        free_image(layer);
+    }
+    return dest;
+}
+
+void constrain_image(image im)
+{
+    int i;
+    for(i = 0; i < im.w*im.h*im.c; ++i){
+        if(im.data[i] < 0) im.data[i] = 0;
+        if(im.data[i] > 1) im.data[i] = 1;
+    }
+}
+
+void normalize_image(image p)
+{
+    int i;
+    float min = 9999999;
+    float max = -999999;
+
+    for(i = 0; i < p.h*p.w*p.c; ++i){
+        float v = p.data[i];
+        if(v < min) min = v;
+        if(v > max) max = v;
+    }
+    if(max - min < .000000001){
+        min = 0;
+        max = 1;
+    }
+    for(i = 0; i < p.c*p.w*p.h; ++i){
+        p.data[i] = (p.data[i] - min)/(max-min);
+    }
+}
+
+void normalize_image2(image p)
+{
+    float* min = (float*)xcalloc(p.c, sizeof(float));
+    float* max = (float*)xcalloc(p.c, sizeof(float));
+    int i,j;
+    for(i = 0; i < p.c; ++i) min[i] = max[i] = p.data[i*p.h*p.w];
+
+    for(j = 0; j < p.c; ++j){
+        for(i = 0; i < p.h*p.w; ++i){
+            float v = p.data[i+j*p.h*p.w];
+            if(v < min[j]) min[j] = v;
+            if(v > max[j]) max[j] = v;
+        }
+    }
+    for(i = 0; i < p.c; ++i){
+        if(max[i] - min[i] < .000000001){
+            min[i] = 0;
+            max[i] = 1;
+        }
+    }
+    for(j = 0; j < p.c; ++j){
+        for(i = 0; i < p.w*p.h; ++i){
+            p.data[i+j*p.h*p.w] = (p.data[i+j*p.h*p.w] - min[j])/(max[j]-min[j]);
+        }
+    }
+    free(min);
+    free(max);
+}
+
+void copy_image_inplace(image src, image dst)
+{
+    memcpy(dst.data, src.data, src.h*src.w*src.c * sizeof(float));
+}
+
+image copy_image(image p)
+{
+    image copy = p;
+    copy.data = (float*)xcalloc(p.h * p.w * p.c, sizeof(float));
+    memcpy(copy.data, p.data, p.h*p.w*p.c*sizeof(float));
+    return copy;
+}
+
+void rgbgr_image(image im)
+{
+    int i;
+    for(i = 0; i < im.w*im.h; ++i){
+        float swap = im.data[i];
+        im.data[i] = im.data[i+im.w*im.h*2];
+        im.data[i+im.w*im.h*2] = swap;
+    }
+}
+
+void show_image(image p, const char *name)
+{
+#ifdef OPENCV
+    show_image_cv(p, name);
+#else
+    fprintf(stderr, "Not compiled with OpenCV, saving to %s.png instead\n", name);
+    save_image(p, name);
+#endif  // OPENCV
+}
+
+void save_image_png(image im, const char *name)
+{
+    char buff[256];
+    //sprintf(buff, "%s (%d)", name, windows);
+    sprintf(buff, "%s.png", name);
+    unsigned char* data = (unsigned char*)xcalloc(im.w * im.h * im.c, sizeof(unsigned char));
+    int i,k;
+    for(k = 0; k < im.c; ++k){
+        for(i = 0; i < im.w*im.h; ++i){
+            data[i*im.c+k] = (unsigned char) (255*im.data[i + k*im.w*im.h]);
+        }
+    }
+    int success = stbi_write_png(buff, im.w, im.h, im.c, data, im.w*im.c);
+    free(data);
+    if(!success) fprintf(stderr, "Failed to write image %s\n", buff);
+}
+
+void save_image_options(image im, const char *name, IMTYPE f, int quality)
+{
+    char buff[256];
+    //sprintf(buff, "%s (%d)", name, windows);
+    if (f == PNG)       sprintf(buff, "%s.png", name);
+    else if (f == BMP) sprintf(buff, "%s.bmp", name);
+    else if (f == TGA) sprintf(buff, "%s.tga", name);
+    else if (f == JPG) sprintf(buff, "%s.jpg", name);
+    else               sprintf(buff, "%s.png", name);
+    unsigned char* data = (unsigned char*)xcalloc(im.w * im.h * im.c, sizeof(unsigned char));
+    int i, k;
+    for (k = 0; k < im.c; ++k) {
+        for (i = 0; i < im.w*im.h; ++i) {
+            data[i*im.c + k] = (unsigned char)(255 * im.data[i + k*im.w*im.h]);
+        }
+    }
+    int success = 0;
+    if (f == PNG)       success = stbi_write_png(buff, im.w, im.h, im.c, data, im.w*im.c);
+    else if (f == BMP) success = stbi_write_bmp(buff, im.w, im.h, im.c, data);
+    else if (f == TGA) success = stbi_write_tga(buff, im.w, im.h, im.c, data);
+    else if (f == JPG) success = stbi_write_jpg(buff, im.w, im.h, im.c, data, quality);
+    free(data);
+    if (!success) fprintf(stderr, "Failed to write image %s\n", buff);
+}
+
+void save_image(image im, const char *name)
+{
+    save_image_options(im, name, JPG, 80);
+}
+
+void save_image_jpg(image p, const char *name)
+{
+    save_image_options(p, name, JPG, 80);
+}
+
+void show_image_layers(image p, char *name)
+{
+    int i;
+    char buff[256];
+    for(i = 0; i < p.c; ++i){
+        sprintf(buff, "%s - Layer %d", name, i);
+        image layer = get_image_layer(p, i);
+        show_image(layer, buff);
+        free_image(layer);
+    }
+}
+
+void show_image_collapsed(image p, char *name)
+{
+    image c = collapse_image_layers(p, 1);
+    show_image(c, name);
+    free_image(c);
+}
+
+image make_empty_image(int w, int h, int c)
+{
+    image out;
+    out.data = 0;
+    out.h = h;
+    out.w = w;
+    out.c = c;
+    return out;
+}
+
+image make_image(int w, int h, int c)
+{
+    image out = make_empty_image(w,h,c);
+    out.data = (float*)xcalloc(h * w * c, sizeof(float));
+    return out;
+}
+
+image make_random_image(int w, int h, int c)
+{
+    image out = make_empty_image(w,h,c);
+    out.data = (float*)xcalloc(h * w * c, sizeof(float));
+    int i;
+    for(i = 0; i < w*h*c; ++i){
+        out.data[i] = (rand_normal() * .25) + .5;
+    }
+    return out;
+}
+
+image float_to_image_scaled(int w, int h, int c, float *data)
+{
+    image out = make_image(w, h, c);
+    int abs_max = 0;
+    int i = 0;
+    for (i = 0; i < w*h*c; ++i) {
+        if (fabs(data[i]) > abs_max) abs_max = fabs(data[i]);
+    }
+    for (i = 0; i < w*h*c; ++i) {
+        out.data[i] = data[i] / abs_max;
+    }
+    return out;
+}
+
+image float_to_image(int w, int h, int c, float *data)
+{
+    image out = make_empty_image(w,h,c);
+    out.data = data;
+    return out;
+}
+
+
+image rotate_crop_image(image im, float rad, float s, int w, int h, float dx, float dy, float aspect)
+{
+    int x, y, c;
+    float cx = im.w/2.;
+    float cy = im.h/2.;
+    image rot = make_image(w, h, im.c);
+    for(c = 0; c < im.c; ++c){
+        for(y = 0; y < h; ++y){
+            for(x = 0; x < w; ++x){
+                float rx = cos(rad)*((x - w/2.)/s*aspect + dx/s*aspect) - sin(rad)*((y - h/2.)/s + dy/s) + cx;
+                float ry = sin(rad)*((x - w/2.)/s*aspect + dx/s*aspect) + cos(rad)*((y - h/2.)/s + dy/s) + cy;
+                float val = bilinear_interpolate(im, rx, ry, c);
+                set_pixel(rot, x, y, c, val);
+            }
+        }
+    }
+    return rot;
+}
+
+image rotate_image(image im, float rad)
+{
+    int x, y, c;
+    float cx = im.w/2.;
+    float cy = im.h/2.;
+    image rot = make_image(im.w, im.h, im.c);
+    for(c = 0; c < im.c; ++c){
+        for(y = 0; y < im.h; ++y){
+            for(x = 0; x < im.w; ++x){
+                float rx = cos(rad)*(x-cx) - sin(rad)*(y-cy) + cx;
+                float ry = sin(rad)*(x-cx) + cos(rad)*(y-cy) + cy;
+                float val = bilinear_interpolate(im, rx, ry, c);
+                set_pixel(rot, x, y, c, val);
+            }
+        }
+    }
+    return rot;
+}
+
+void translate_image(image m, float s)
+{
+    int i;
+    for(i = 0; i < m.h*m.w*m.c; ++i) m.data[i] += s;
+}
+
+void scale_image(image m, float s)
+{
+    int i;
+    for(i = 0; i < m.h*m.w*m.c; ++i) m.data[i] *= s;
+}
+
+image crop_image(image im, int dx, int dy, int w, int h)
+{
+    image cropped = make_image(w, h, im.c);
+    int i, j, k;
+    for(k = 0; k < im.c; ++k){
+        for(j = 0; j < h; ++j){
+            for(i = 0; i < w; ++i){
+                int r = j + dy;
+                int c = i + dx;
+                float val = 0;
+                r = constrain_int(r, 0, im.h-1);
+                c = constrain_int(c, 0, im.w-1);
+                if (r >= 0 && r < im.h && c >= 0 && c < im.w) {
+                    val = get_pixel(im, c, r, k);
+                }
+                set_pixel(cropped, i, j, k, val);
+            }
+        }
+    }
+    return cropped;
+}
+
+int best_3d_shift_r(image a, image b, int min, int max)
+{
+    if(min == max) return min;
+    int mid = floor((min + max) / 2.);
+    image c1 = crop_image(b, 0, mid, b.w, b.h);
+    image c2 = crop_image(b, 0, mid+1, b.w, b.h);
+    float d1 = dist_array(c1.data, a.data, a.w*a.h*a.c, 10);
+    float d2 = dist_array(c2.data, a.data, a.w*a.h*a.c, 10);
+    free_image(c1);
+    free_image(c2);
+    if(d1 < d2) return best_3d_shift_r(a, b, min, mid);
+    else return best_3d_shift_r(a, b, mid+1, max);
+}
+
+int best_3d_shift(image a, image b, int min, int max)
+{
+    int i;
+    int best = 0;
+    float best_distance = FLT_MAX;
+    for(i = min; i <= max; i += 2){
+        image c = crop_image(b, 0, i, b.w, b.h);
+        float d = dist_array(c.data, a.data, a.w*a.h*a.c, 100);
+        if(d < best_distance){
+            best_distance = d;
+            best = i;
+        }
+        printf("%d %f\n", i, d);
+        free_image(c);
+    }
+    return best;
+}
+
+void composite_3d(char *f1, char *f2, char *out, int delta)
+{
+    if(!out) out = "out";
+    image a = load_image(f1, 0,0,0);
+    image b = load_image(f2, 0,0,0);
+    int shift = best_3d_shift_r(a, b, -a.h/100, a.h/100);
+
+    image c1 = crop_image(b, 10, shift, b.w, b.h);
+    float d1 = dist_array(c1.data, a.data, a.w*a.h*a.c, 100);
+    image c2 = crop_image(b, -10, shift, b.w, b.h);
+    float d2 = dist_array(c2.data, a.data, a.w*a.h*a.c, 100);
+
+    if(d2 < d1 && 0){
+        image swap = a;
+        a = b;
+        b = swap;
+        shift = -shift;
+        printf("swapped, %d\n", shift);
+    }
+    else{
+        printf("%d\n", shift);
+    }
+
+    image c = crop_image(b, delta, shift, a.w, a.h);
+    int i;
+    for(i = 0; i < c.w*c.h; ++i){
+        c.data[i] = a.data[i];
+    }
+#ifdef OPENCV
+    save_image_jpg(c, out);
+#else
+    save_image(c, out);
+#endif
+}
+
+void fill_image(image m, float s)
+{
+    int i;
+    for (i = 0; i < m.h*m.w*m.c; ++i) m.data[i] = s;
+}
+
+void letterbox_image_into(image im, int w, int h, image boxed)
+{
+    int new_w = im.w;
+    int new_h = im.h;
+    if (((float)w / im.w) < ((float)h / im.h)) {
+        new_w = w;
+        new_h = (im.h * w) / im.w;
+    }
+    else {
+        new_h = h;
+        new_w = (im.w * h) / im.h;
+    }
+    image resized = resize_image(im, new_w, new_h);
+    embed_image(resized, boxed, (w - new_w) / 2, (h - new_h) / 2);
+    free_image(resized);
+}
+
+image letterbox_image(image im, int w, int h)
+{
+    int new_w = im.w;
+    int new_h = im.h;
+    if (((float)w / im.w) < ((float)h / im.h)) {
+        new_w = w;
+        new_h = (im.h * w) / im.w;
+    }
+    else {
+        new_h = h;
+        new_w = (im.w * h) / im.h;
+    }
+    image resized = resize_image(im, new_w, new_h);
+    image boxed = make_image(w, h, im.c);
+    fill_image(boxed, .5);
+    //int i;
+    //for(i = 0; i < boxed.w*boxed.h*boxed.c; ++i) boxed.data[i] = 0;
+    embed_image(resized, boxed, (w - new_w) / 2, (h - new_h) / 2);
+    free_image(resized);
+    return boxed;
+}
+
+image resize_max(image im, int max)
+{
+    int w = im.w;
+    int h = im.h;
+    if(w > h){
+        h = (h * max) / w;
+        w = max;
+    } else {
+        w = (w * max) / h;
+        h = max;
+    }
+    if(w == im.w && h == im.h) return im;
+    image resized = resize_image(im, w, h);
+    return resized;
+}
+
+image resize_min(image im, int min)
+{
+    int w = im.w;
+    int h = im.h;
+    if(w < h){
+        h = (h * min) / w;
+        w = min;
+    } else {
+        w = (w * min) / h;
+        h = min;
+    }
+    if(w == im.w && h == im.h) return im;
+    image resized = resize_image(im, w, h);
+    return resized;
+}
+
+image random_crop_image(image im, int w, int h)
+{
+    int dx = rand_int(0, im.w - w);
+    int dy = rand_int(0, im.h - h);
+    image crop = crop_image(im, dx, dy, w, h);
+    return crop;
+}
+
+image random_augment_image(image im, float angle, float aspect, int low, int high, int size)
+{
+    aspect = rand_scale(aspect);
+    int r = rand_int(low, high);
+    int min = (im.h < im.w*aspect) ? im.h : im.w*aspect;
+    float scale = (float)r / min;
+
+    float rad = rand_uniform(-angle, angle) * 2.0 * M_PI / 360.;
+
+    float dx = (im.w*scale/aspect - size) / 2.;
+    float dy = (im.h*scale - size) / 2.;
+    if(dx < 0) dx = 0;
+    if(dy < 0) dy = 0;
+    dx = rand_uniform(-dx, dx);
+    dy = rand_uniform(-dy, dy);
+
+    image crop = rotate_crop_image(im, rad, scale, size, size, dx, dy, aspect);
+
+    return crop;
+}
+
+float three_way_max(float a, float b, float c)
+{
+    return (a > b) ? ( (a > c) ? a : c) : ( (b > c) ? b : c) ;
+}
+
+float three_way_min(float a, float b, float c)
+{
+    return (a < b) ? ( (a < c) ? a : c) : ( (b < c) ? b : c) ;
+}
+
+// http://www.cs.rit.edu/~ncs/color/t_convert.html
+void rgb_to_hsv(image im)
+{
+    assert(im.c == 3);
+    int i, j;
+    float r, g, b;
+    float h, s, v;
+    for(j = 0; j < im.h; ++j){
+        for(i = 0; i < im.w; ++i){
+            r = get_pixel(im, i , j, 0);
+            g = get_pixel(im, i , j, 1);
+            b = get_pixel(im, i , j, 2);
+            float max = three_way_max(r,g,b);
+            float min = three_way_min(r,g,b);
+            float delta = max - min;
+            v = max;
+            if(max == 0){
+                s = 0;
+                h = 0;
+            }else{
+                s = delta/max;
+                if(r == max){
+                    h = (g - b) / delta;
+                } else if (g == max) {
+                    h = 2 + (b - r) / delta;
+                } else {
+                    h = 4 + (r - g) / delta;
+                }
+                if (h < 0) h += 6;
+                h = h/6.;
+            }
+            set_pixel(im, i, j, 0, h);
+            set_pixel(im, i, j, 1, s);
+            set_pixel(im, i, j, 2, v);
+        }
+    }
+}
+
+void hsv_to_rgb(image im)
+{
+    assert(im.c == 3);
+    int i, j;
+    float r, g, b;
+    float h, s, v;
+    float f, p, q, t;
+    for(j = 0; j < im.h; ++j){
+        for(i = 0; i < im.w; ++i){
+            h = 6 * get_pixel(im, i , j, 0);
+            s = get_pixel(im, i , j, 1);
+            v = get_pixel(im, i , j, 2);
+            if (s == 0) {
+                r = g = b = v;
+            } else {
+                int index = floor(h);
+                f = h - index;
+                p = v*(1-s);
+                q = v*(1-s*f);
+                t = v*(1-s*(1-f));
+                if(index == 0){
+                    r = v; g = t; b = p;
+                } else if(index == 1){
+                    r = q; g = v; b = p;
+                } else if(index == 2){
+                    r = p; g = v; b = t;
+                } else if(index == 3){
+                    r = p; g = q; b = v;
+                } else if(index == 4){
+                    r = t; g = p; b = v;
+                } else {
+                    r = v; g = p; b = q;
+                }
+            }
+            set_pixel(im, i, j, 0, r);
+            set_pixel(im, i, j, 1, g);
+            set_pixel(im, i, j, 2, b);
+        }
+    }
+}
+
+image grayscale_image(image im)
+{
+    assert(im.c == 3);
+    int i, j, k;
+    image gray = make_image(im.w, im.h, 1);
+    float scale[] = {0.587, 0.299, 0.114};
+    for(k = 0; k < im.c; ++k){
+        for(j = 0; j < im.h; ++j){
+            for(i = 0; i < im.w; ++i){
+                gray.data[i+im.w*j] += scale[k]*get_pixel(im, i, j, k);
+            }
+        }
+    }
+    return gray;
+}
+
+image threshold_image(image im, float thresh)
+{
+    int i;
+    image t = make_image(im.w, im.h, im.c);
+    for(i = 0; i < im.w*im.h*im.c; ++i){
+        t.data[i] = im.data[i]>thresh ? 1 : 0;
+    }
+    return t;
+}
+
+image blend_image(image fore, image back, float alpha)
+{
+    assert(fore.w == back.w && fore.h == back.h && fore.c == back.c);
+    image blend = make_image(fore.w, fore.h, fore.c);
+    int i, j, k;
+    for(k = 0; k < fore.c; ++k){
+        for(j = 0; j < fore.h; ++j){
+            for(i = 0; i < fore.w; ++i){
+                float val = alpha * get_pixel(fore, i, j, k) +
+                    (1 - alpha)* get_pixel(back, i, j, k);
+                set_pixel(blend, i, j, k, val);
+            }
+        }
+    }
+    return blend;
+}
+
+void scale_image_channel(image im, int c, float v)
+{
+    int i, j;
+    for(j = 0; j < im.h; ++j){
+        for(i = 0; i < im.w; ++i){
+            float pix = get_pixel(im, i, j, c);
+            pix = pix*v;
+            set_pixel(im, i, j, c, pix);
+        }
+    }
+}
+
+void translate_image_channel(image im, int c, float v)
+{
+    int i, j;
+    for(j = 0; j < im.h; ++j){
+        for(i = 0; i < im.w; ++i){
+            float pix = get_pixel(im, i, j, c);
+            pix = pix+v;
+            set_pixel(im, i, j, c, pix);
+        }
+    }
+}
+
+image binarize_image(image im)
+{
+    image c = copy_image(im);
+    int i;
+    for(i = 0; i < im.w * im.h * im.c; ++i){
+        if(c.data[i] > .5) c.data[i] = 1;
+        else c.data[i] = 0;
+    }
+    return c;
+}
+
+void saturate_image(image im, float sat)
+{
+    rgb_to_hsv(im);
+    scale_image_channel(im, 1, sat);
+    hsv_to_rgb(im);
+    constrain_image(im);
+}
+
+void hue_image(image im, float hue)
+{
+    rgb_to_hsv(im);
+    int i;
+    for(i = 0; i < im.w*im.h; ++i){
+        im.data[i] = im.data[i] + hue;
+        if (im.data[i] > 1) im.data[i] -= 1;
+        if (im.data[i] < 0) im.data[i] += 1;
+    }
+    hsv_to_rgb(im);
+    constrain_image(im);
+}
+
+void exposure_image(image im, float sat)
+{
+    rgb_to_hsv(im);
+    scale_image_channel(im, 2, sat);
+    hsv_to_rgb(im);
+    constrain_image(im);
+}
+
+void distort_image(image im, float hue, float sat, float val)
+{
+    if (im.c >= 3)
+    {
+        rgb_to_hsv(im);
+        scale_image_channel(im, 1, sat);
+        scale_image_channel(im, 2, val);
+        int i;
+        for(i = 0; i < im.w*im.h; ++i){
+            im.data[i] = im.data[i] + hue;
+            if (im.data[i] > 1) im.data[i] -= 1;
+            if (im.data[i] < 0) im.data[i] += 1;
+        }
+        hsv_to_rgb(im);
+    }
+    else
+    {
+        scale_image_channel(im, 0, val);
+    }
+    constrain_image(im);
+}
+
+void random_distort_image(image im, float hue, float saturation, float exposure)
+{
+    float dhue = rand_uniform_strong(-hue, hue);
+    float dsat = rand_scale(saturation);
+    float dexp = rand_scale(exposure);
+    distort_image(im, dhue, dsat, dexp);
+}
+
+void saturate_exposure_image(image im, float sat, float exposure)
+{
+    rgb_to_hsv(im);
+    scale_image_channel(im, 1, sat);
+    scale_image_channel(im, 2, exposure);
+    hsv_to_rgb(im);
+    constrain_image(im);
+}
+
+float bilinear_interpolate(image im, float x, float y, int c)
+{
+    int ix = (int) floorf(x);
+    int iy = (int) floorf(y);
+
+    float dx = x - ix;
+    float dy = y - iy;
+
+    float val = (1-dy) * (1-dx) * get_pixel_extend(im, ix, iy, c) +
+        dy     * (1-dx) * get_pixel_extend(im, ix, iy+1, c) +
+        (1-dy) *   dx   * get_pixel_extend(im, ix+1, iy, c) +
+        dy     *   dx   * get_pixel_extend(im, ix+1, iy+1, c);
+    return val;
+}
+
+void quantize_image(image im)
+{
+    int size = im.c * im.w * im.h;
+    int i;
+    for (i = 0; i < size; ++i) im.data[i] = (int)(im.data[i] * 255) / 255. + (0.5/255);
+}
+
+void make_image_red(image im)
+{
+    int r, c, k;
+    for (r = 0; r < im.h; ++r) {
+        for (c = 0; c < im.w; ++c) {
+            float val = 0;
+            for (k = 0; k < im.c; ++k) {
+                val += get_pixel(im, c, r, k);
+                set_pixel(im, c, r, k, 0);
+            }
+            for (k = 0; k < im.c; ++k) {
+                //set_pixel(im, c, r, k, val);
+            }
+            set_pixel(im, c, r, 0, val);
+        }
+    }
+}
+
+image make_attention_image(int img_size, float *original_delta_cpu, float *original_input_cpu, int w, int h, int c)
+{
+    image attention_img;
+    attention_img.w = w;
+    attention_img.h = h;
+    attention_img.c = c;
+    attention_img.data = original_delta_cpu;
+    make_image_red(attention_img);
+
+    int k;
+    float min_val = 999999, mean_val = 0, max_val = -999999;
+    for (k = 0; k < img_size; ++k) {
+        if (original_delta_cpu[k] < min_val) min_val = original_delta_cpu[k];
+        if (original_delta_cpu[k] > max_val) max_val = original_delta_cpu[k];
+        mean_val += original_delta_cpu[k];
+    }
+    mean_val = mean_val / img_size;
+    float range = max_val - min_val;
+
+    for (k = 0; k < img_size; ++k) {
+        float val = original_delta_cpu[k];
+        val = fabs(mean_val - val) / range;
+        original_delta_cpu[k] = val * 4;
+    }
+
+    image resized = resize_image(attention_img, w / 4, h / 4);
+    attention_img = resize_image(resized, w, h);
+    free_image(resized);
+    for (k = 0; k < img_size; ++k) attention_img.data[k] += original_input_cpu[k];
+
+    //normalize_image(attention_img);
+    //show_image(attention_img, "delta");
+    return attention_img;
+}
+
+image resize_image(image im, int w, int h)
+{
+    if (im.w == w && im.h == h) return copy_image(im);
+
+    image resized = make_image(w, h, im.c);
+    image part = make_image(w, im.h, im.c);
+    int r, c, k;
+    float w_scale = (float)(im.w - 1) / (w - 1);
+    float h_scale = (float)(im.h - 1) / (h - 1);
+    for(k = 0; k < im.c; ++k){
+        for(r = 0; r < im.h; ++r){
+            for(c = 0; c < w; ++c){
+                float val = 0;
+                if(c == w-1 || im.w == 1){
+                    val = get_pixel(im, im.w-1, r, k);
+                } else {
+                    float sx = c*w_scale;
+                    int ix = (int) sx;
+                    float dx = sx - ix;
+                    val = (1 - dx) * get_pixel(im, ix, r, k) + dx * get_pixel(im, ix+1, r, k);
+                }
+                set_pixel(part, c, r, k, val);
+            }
+        }
+    }
+    for(k = 0; k < im.c; ++k){
+        for(r = 0; r < h; ++r){
+            float sy = r*h_scale;
+            int iy = (int) sy;
+            float dy = sy - iy;
+            for(c = 0; c < w; ++c){
+                float val = (1-dy) * get_pixel(part, c, iy, k);
+                set_pixel(resized, c, r, k, val);
+            }
+            if(r == h-1 || im.h == 1) continue;
+            for(c = 0; c < w; ++c){
+                float val = dy * get_pixel(part, c, iy+1, k);
+                add_pixel(resized, c, r, k, val);
+            }
+        }
+    }
+
+    free_image(part);
+    return resized;
+}
+
+
+void test_resize(char *filename)
+{
+    image im = load_image(filename, 0,0, 3);
+    float mag = mag_array(im.data, im.w*im.h*im.c);
+    printf("L2 Norm: %f\n", mag);
+    image gray = grayscale_image(im);
+
+    image c1 = copy_image(im);
+    image c2 = copy_image(im);
+    image c3 = copy_image(im);
+    image c4 = copy_image(im);
+    distort_image(c1, .1, 1.5, 1.5);
+    distort_image(c2, -.1, .66666, .66666);
+    distort_image(c3, .1, 1.5, .66666);
+    distort_image(c4, .1, .66666, 1.5);
+
+
+    show_image(im,   "Original");
+    show_image(gray, "Gray");
+    show_image(c1, "C1");
+    show_image(c2, "C2");
+    show_image(c3, "C3");
+    show_image(c4, "C4");
+
+#ifdef OPENCV
+    while(1){
+        image aug = random_augment_image(im, 0, .75, 320, 448, 320);
+        show_image(aug, "aug");
+        free_image(aug);
+
+
+        float exposure = 1.15;
+        float saturation = 1.15;
+        float hue = .05;
+
+        image c = copy_image(im);
+
+        float dexp = rand_scale(exposure);
+        float dsat = rand_scale(saturation);
+        float dhue = rand_uniform(-hue, hue);
+
+        distort_image(c, dhue, dsat, dexp);
+        show_image(c, "rand");
+        printf("%f %f %f\n", dhue, dsat, dexp);
+        free_image(c);
+        wait_until_press_key_cv();
+    }
+#endif
+}
+
+
+image load_image_stb(char *filename, int channels)
+{
+    int w, h, c;
+    unsigned char *data = stbi_load(filename, &w, &h, &c, channels);
+    if (!data) {
+        char shrinked_filename[1024];
+        if (strlen(filename) >= 1024) sprintf(shrinked_filename, "name is too long");
+        else sprintf(shrinked_filename, "%s", filename);
+        fprintf(stderr, "Cannot load image \"%s\"\nSTB Reason: %s\n", shrinked_filename, stbi_failure_reason());
+        FILE* fw = fopen("bad.list", "a");
+        fwrite(shrinked_filename, sizeof(char), strlen(shrinked_filename), fw);
+        char *new_line = "\n";
+        fwrite(new_line, sizeof(char), strlen(new_line), fw);
+        fclose(fw);
+        if (check_mistakes) {
+            printf("\n Error in load_image_stb() \n");
+            getchar();
+        }
+        return make_image(10, 10, 3);
+        //exit(EXIT_FAILURE);
+    }
+    if(channels) c = channels;
+    int i,j,k;
+    image im = make_image(w, h, c);
+    for(k = 0; k < c; ++k){
+        for(j = 0; j < h; ++j){
+            for(i = 0; i < w; ++i){
+                int dst_index = i + w*j + w*h*k;
+                int src_index = k + c*i + c*w*j;
+                im.data[dst_index] = (float)data[src_index]/255.;
+            }
+        }
+    }
+    free(data);
+    return im;
+}
+
+image load_image_stb_resize(char *filename, int w, int h, int c)
+{
+    image out = load_image_stb(filename, c);    // without OpenCV
+
+    if ((h && w) && (h != out.h || w != out.w)) {
+        image resized = resize_image(out, w, h);
+        free_image(out);
+        out = resized;
+    }
+    return out;
+}
+
+image load_image(char *filename, int w, int h, int c)
+{
+#ifdef OPENCV
+    //image out = load_image_stb(filename, c);
+    image out = load_image_cv(filename, c);
+#else
+    image out = load_image_stb(filename, c);    // without OpenCV
+#endif  // OPENCV
+
+    if((h && w) && (h != out.h || w != out.w)){
+        image resized = resize_image(out, w, h);
+        free_image(out);
+        out = resized;
+    }
+    return out;
+}
+
+image load_image_color(char *filename, int w, int h)
+{
+    return load_image(filename, w, h, 3);
+}
+
+image get_image_layer(image m, int l)
+{
+    image out = make_image(m.w, m.h, 1);
+    int i;
+    for(i = 0; i < m.h*m.w; ++i){
+        out.data[i] = m.data[i+l*m.h*m.w];
+    }
+    return out;
+}
+
+void print_image(image m)
+{
+    int i, j, k;
+    for(i =0 ; i < m.c; ++i){
+        for(j =0 ; j < m.h; ++j){
+            for(k = 0; k < m.w; ++k){
+                printf("%.2lf, ", m.data[i*m.h*m.w + j*m.w + k]);
+                if(k > 30) break;
+            }
+            printf("\n");
+            if(j > 30) break;
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
+image collapse_images_vert(image *ims, int n)
+{
+    int color = 1;
+    int border = 1;
+    int h,w,c;
+    w = ims[0].w;
+    h = (ims[0].h + border) * n - border;
+    c = ims[0].c;
+    if(c != 3 || !color){
+        w = (w+border)*c - border;
+        c = 1;
+    }
+
+    image filters = make_image(w, h, c);
+    int i,j;
+    for(i = 0; i < n; ++i){
+        int h_offset = i*(ims[0].h+border);
+        image copy = copy_image(ims[i]);
+        //normalize_image(copy);
+        if(c == 3 && color){
+            embed_image(copy, filters, 0, h_offset);
+        }
+        else{
+            for(j = 0; j < copy.c; ++j){
+                int w_offset = j*(ims[0].w+border);
+                image layer = get_image_layer(copy, j);
+                embed_image(layer, filters, w_offset, h_offset);
+                free_image(layer);
+            }
+        }
+        free_image(copy);
+    }
+    return filters;
+}
+
+image collapse_images_horz(image *ims, int n)
+{
+    int color = 1;
+    int border = 1;
+    int h,w,c;
+    int size = ims[0].h;
+    h = size;
+    w = (ims[0].w + border) * n - border;
+    c = ims[0].c;
+    if(c != 3 || !color){
+        h = (h+border)*c - border;
+        c = 1;
+    }
+
+    image filters = make_image(w, h, c);
+    int i,j;
+    for(i = 0; i < n; ++i){
+        int w_offset = i*(size+border);
+        image copy = copy_image(ims[i]);
+        //normalize_image(copy);
+        if(c == 3 && color){
+            embed_image(copy, filters, w_offset, 0);
+        }
+        else{
+            for(j = 0; j < copy.c; ++j){
+                int h_offset = j*(size+border);
+                image layer = get_image_layer(copy, j);
+                embed_image(layer, filters, w_offset, h_offset);
+                free_image(layer);
+            }
+        }
+        free_image(copy);
+    }
+    return filters;
+}
+
+void show_image_normalized(image im, const char *name)
+{
+    image c = copy_image(im);
+    normalize_image(c);
+    show_image(c, name);
+    free_image(c);
+}
+
+void show_images(image *ims, int n, char *window)
+{
+    image m = collapse_images_vert(ims, n);
+    /*
+       int w = 448;
+       int h = ((float)m.h/m.w) * 448;
+       if(h > 896){
+       h = 896;
+       w = ((float)m.w/m.h) * 896;
+       }
+       image sized = resize_image(m, w, h);
+     */
+    normalize_image(m);
+    save_image(m, window);
+    show_image(m, window);
+    free_image(m);
+}
+
+void free_image(image m)
+{
+    if(m.data){
+        free(m.data);
+    }
+}
+
+// Fast copy data from a contiguous byte array into the image.
+LIB_API void copy_image_from_bytes(image im, char *pdata)
+{
+    unsigned char *data = (unsigned char*)pdata;
+    int i, k, j;
+    int w = im.w;
+    int h = im.h;
+    int c = im.c;
+    for (k = 0; k < c; ++k) {
+        for (j = 0; j < h; ++j) {
+            for (i = 0; i < w; ++i) {
+                int dst_index = i + w * j + w * h*k;
+                int src_index = k + c * i + c * w*j;
+                im.data[dst_index] = (float)data[src_index] / 255.;
+            }
+        }
+    }
+}
