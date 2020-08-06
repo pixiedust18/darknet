@@ -1021,7 +1021,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         return true;
       return false;
     }
-    void draw_zones(mat_cv *mat, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2)
+    void draw_zones(cv::Mat *mat, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2)
     {
         cv::Scalar color;
         color.val[0] = 0;
@@ -1079,7 +1079,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         }
         return zones;
     }
-    int draw_zone1(mat_cv *mat, int zone_no, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, int *m, int* c)
+    int draw_zone1(cv::Mat *mat, int zone_no, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, int *m, int* c)
     {
         cv::Scalar color;
         color.val[0] = 255;
@@ -1183,12 +1183,13 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         }
         in>>end_x1>>end_y1>>end_x2>>end_y2;
         in.close();
-        draw_zones(mat, start_x1, start_y1,start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, y1, x2, y2);
         
         int xywh[num][4];
         try
         {
             cv::Mat *show_img = (cv::Mat *)mat;
+            draw_zones(show_img, start_x1, start_y1,start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, y1, x2, y2);
+
             int i, j;
             if (!show_img)
                 return;
@@ -1336,7 +1337,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
                         int curr_zone = find_zone(xywh[l][0], xywh[l][1], start_x1, start_y1, start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, x2, y1, y2, m, c);
                         if(zone_count[curr_zone]==0)
                         {
-                            draw_zone1(mat, curr_zone, start_x1, start_y1, start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, x2, y1, y2, m, c);
+                            draw_zone1(show_img, curr_zone, start_x1, start_y1, start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, x2, y1, y2, m, c);
                         } else
                         {
                             zone_count[curr_zone]++;
