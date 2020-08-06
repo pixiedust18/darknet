@@ -251,14 +251,12 @@ extern "C" int get_width_cv(mat_cv *ipl_src)
     return ipl->width;
 }
 // ----------------------------------------
-
 extern "C" int get_height_cv(mat_cv *ipl_src)
 {
     IplImage *ipl = (IplImage *)ipl_src;
     return ipl->height;
 }
 // ----------------------------------------
-
 extern "C" void release_ipl(mat_cv **ipl)
 {
     IplImage **ipl_img = (IplImage **)ipl;
@@ -266,11 +264,9 @@ extern "C" void release_ipl(mat_cv **ipl)
     *ipl_img = NULL;
 }
 // ----------------------------------------
-
 // ====================================================================
 // image-to-ipl, ipl-to-image, image_to_mat, mat_to_image
 // ====================================================================
-
 extern "C" mat_cv *image_to_ipl(image im)
 {
     int x, y, c;
@@ -287,7 +283,6 @@ extern "C" mat_cv *image_to_ipl(image im)
     return (mat_cv *)disp;
 }
 // ----------------------------------------
-
 extern "C" image ipl_to_image(mat_cv* src_ptr)
 {
     IplImage* src = (IplImage*)src_ptr;
@@ -298,7 +293,6 @@ extern "C" image ipl_to_image(mat_cv* src_ptr)
     unsigned char *data = (unsigned char *)src->imageData;
     int step = src->widthStep;
     int i, j, k;
-
     for (i = 0; i < h; ++i) {
         for (k = 0; k < c; ++k) {
             for (j = 0; j < w; ++j) {
@@ -309,14 +303,12 @@ extern "C" image ipl_to_image(mat_cv* src_ptr)
     return im;
 }
 // ----------------------------------------
-
 cv::Mat ipl_to_mat(IplImage *ipl)
 {
     Mat m = cvarrToMat(ipl, true);
     return m;
 }
 // ----------------------------------------
-
 IplImage *mat_to_ipl(cv::Mat mat)
 {
     IplImage *ipl = new IplImage;
@@ -595,8 +587,6 @@ extern "C" void *open_video_stream(const char *f, int c, int w, int h, int fps)
     if(fps) cap->set(CV_CAP_PROP_FPS, w);
     return (void *) cap;
 }
-
-
 extern "C" image get_image_from_stream(void *p)
 {
     VideoCapture *cap = (VideoCapture *)p;
@@ -605,7 +595,6 @@ extern "C" image get_image_from_stream(void *p)
     if(m.empty()) return make_empty_image(0,0,0);
     return mat_to_image(m);
 }
-
 extern "C" int show_image_cv(image im, const char* name, int ms)
 {
     Mat m = image_to_mat(im);
@@ -979,8 +968,8 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         float y_dist = abs(y1-y2);
         float theta = atan(y_dist / x_dist);
 
-        float sd1 = h1 / 1.6 * cos(theta);
-        float sd2 = h2 / 1.6 * cos(theta);
+        float sd1 = h1 / 1.7 * cos(theta);
+        float sd2 = h2 / 1.7 * cos(theta);
 
         if (ed > 0 && (sd1 + sd2) > ed)
             return false;
@@ -1004,7 +993,6 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         vsd1cos = h1 * cos(theta) / 0.8;
         float sd = sqrt(vsd1sin * vsd1sin + vsd1cos * vsd1cos);
         float ed = sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (v1-v2)*(v1-v2));
-
         if(ed>0 && ed<sd)
             return false;*/
         return true;
@@ -1082,7 +1070,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         }
         return zones;
     }
-    int draw_zone1(cv::Mat *mat, int zone_no, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, float *m, float* c)
+    void draw_zone1(cv::Mat *mat, int zone_no, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, float *m, float* c)
     {
         cv::Scalar color;
         color.val[0] = 255;
