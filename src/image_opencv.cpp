@@ -1009,13 +1009,13 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
             return false;*/
         return true;
     }
-    bool pointaboveline(m, c, y1, x1)
+    bool pointaboveline(int m, int c, int x1, int y1)
     {
       if(y1 >= (m*x1 + c))
         return true;
       return false;
     }
-    bool pointbelowline(m, c, y1, x1)
+    bool pointbelowline(int m, int c, int x1, int  y1)
     {
       if(y1 <= (m*x1 + c))
         return true;
