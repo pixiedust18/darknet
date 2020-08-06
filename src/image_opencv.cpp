@@ -1033,13 +1033,13 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         pt1.y = start_y1;
         pt2.x = start_x2;
         pt2.y = start_y2;
-        cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
         pt1.x = end_x1;
         pt1.y = end_y1;
         pt2.x = end_x2;
         pt2.y = end_y2;
-        cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
         for(int i=0; i<zones; i++)
         {
@@ -1047,20 +1047,20 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
             pt1.y = y1[i];
             pt2.x = x2[i];
             pt2.y = y2[i];
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
         }
 
         pt1.x = start_x1;
         pt1.y = start_y1;
         pt2.x = end_x1;
         pt2.y = end_y1;
-        cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
         pt1.x = start_x2;
         pt1.y = start_y2;
         pt2.x = end_x2;
         pt2.y = end_y2;
-        cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
     }
     int find_zone(int find_x, int find_y, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, int *m, int* c)
     {
@@ -1079,7 +1079,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         }
         return zones;
     }
-    int draw_zone1(int zone_no, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, int *m, int* c)
+    int draw_zone1(mat_cv *mat, int zone_no, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, int *m, int* c)
     {
         cv::Scalar color;
         color.val[0] = 255;
@@ -1093,75 +1093,75 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
             pt1.y = start_y1;
             pt2.x = start_x2;
             pt2.y = start_y2;
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
             pt1.x = start_x1;
             pt1.y = start_y1;
             pt2.x = x1[0];
             pt2.y = y1[0];
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
             pt1.x = x1[0];
             pt1.y = y1[0];
             pt2.x = x2[0];
             pt2.y = y2[0];
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
             pt2.x = x2[0];
             pt2.y = y2[0];
             pt2.x = start_x2;
             pt2.y = start_y2;
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
         } else if(zone_no == zones)
         {
             pt1.x = end_x1;
             pt1.y = end_y1;
             pt2.x = end_x2;
             pt2.y = end_y2;
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
             pt1.x = end_x1;
             pt1.y = end_y1;
             pt2.x = x1[zones-2];
             pt2.y = y1[zones-2];
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
             pt1.x = x1[zones-2];
             pt1.y = y1[zones-2];
             pt2.x = x2[zones-2];
             pt2.y = y2[zones-2];
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
             pt2.x = x2[zones-2];
             pt2.y = y2[zones-2];
             pt2.x = end_x2;
             pt2.y = end_y2;
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
         } else
         {
             pt1.x = x1[zone_no-2];
             pt1.y = y1[zone_no-2];
             pt2.x = x2[zone_no-2];
             pt2.y = y2[zone_no-2];
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
             pt1.x = x1[zone_no-2];
             pt1.y = y1[zone_no-2];
             pt2.x = x1[zone_no-1];
             pt2.y = y1[zone_no-1];
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
             pt1.x = x2[zone_no-2];
             pt1.y = y2[zone_no-2];
             pt2.x = x2[zone_no-1];
             pt2.y = y2[zone_no-1];
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
 
             pt1.x = x1[zone_no-1];
             pt1.y = y1[zone_no-1];
             pt2.x = x2[zone_no-1];
             pt2.y = y2[zone_no-1];
-            cv::line(mat, pt1, pt2, color, int thickness=1, int lineType=8, int shift=0);
+            cv::line(mat, pt1, pt2, color, 1, 8, 0);
         }
 
     }
@@ -1336,7 +1336,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
                         int curr_zone = find_zone(xywh[l][0], xywh[l][1], start_x1, start_y1, start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, x2, y1, y2, m, c);
                         if(zone_count[curr_zone]==0)
                         {
-                            draw_zone1(curr_zone, start_x1, start_y1, start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, x2, y1, y2, m, c);
+                            draw_zone1(mat, curr_zone, start_x1, start_y1, start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, x2, y1, y2, m, c);
                         } else
                         {
                             zone_count[curr_zone]++;
