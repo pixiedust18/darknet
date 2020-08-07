@@ -18,8 +18,8 @@ x2_co=[]
 y2_co =[]
 m_co=[]
 c_co=[]
-with open(“floor_coordinates.txt”) as f:
-    zones = [int(x) for x in next(f).split()] # read first line
+with open("floor_coordinates.txt") as f:
+    zones = int(next(f)) # read first line
     start_x1, start_y1, start_x2, start_y2 = [int(y) for y in next(f).split()] # read first line
     end_x1, end_y1, end_x2, end_y2 = [int(y) for y in next(f).split()]
     array = []
@@ -74,11 +74,11 @@ def check(p1, p2, w1, w2, h1, h2, SD, f):
     if (ed>0 and ed<SD):
         return False
     return True'''
-    '''param = (x1+x2)/2
-    if(social_distance > 0 and social_distance < 0.25 * param):
-        return False
+    #param = (x1+x2)/2
+    #if(social_distance > 0 and social_distance < 0.25 * param):
+    #    return False
     
-    return True'''
+    #return True
 def pointaboveline(m, c, x1, y1):
   if (y1 >= (m*x1 + c)):
     return True
