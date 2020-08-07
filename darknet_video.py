@@ -18,7 +18,7 @@ x2_co=[]
 y2_co =[]
 m_co=[]
 c_co=[]
-with open("floor_coordinates.txt") as f:
+'''with open("floor_coordinates.txt") as f:
     zones = int(next(f)) # read first line
     wd, ht = [int(y) for y in next(f).split()]
     start_x1, start_y1, start_x2, start_y2 = [int(y) for y in next(f).split()] # read first line
@@ -31,8 +31,33 @@ with open("floor_coordinates.txt") as f:
         x2_co.append(x2)
         y2_co.append(y2)
         m_co.append(m)
-        c_co.append(c)
-
+        c_co.append(c)'''
+zones = 4
+wd = 690 
+ht = 388
+start_x1, start_y1, start_x2, start_y2 = 3, 179, 605, 386
+end_x1, end_y1, end_x2, end_y2 = 403 ,0 ,683, 0
+x1_, y1_, x2_, y2_, m_, c_  = 3, 179, 605, 386, 0.3438538205980066 ,177.968438538206
+x1_co.append(x1_)
+y1_co.append(y1_)
+x2_co.append(x2_)
+y2_co.append(y2_)
+m_co.append(m_)
+c_co.append(c_)
+x1_, y1_, x2_, y2_, m_, c_  = 136, 119 ,631 ,257 ,0.2789757412398922 ,81.29964061096132
+x1_co.append(x1_)
+y1_co.append(y1_)
+x2_co.append(x2_)
+y2_co.append(y2_)
+m_co.append(m_)
+c_co.append(c_)
+x1_, y1_, x2_, y2_, m_, c_  = 269, 59, 657, 128, 0.17814113597246128, 11.627940332759593
+x1_co.append(x1_)
+y1_co.append(y1_)
+x2_co.append(x2_)
+y2_co.append(y2_)
+m_co.append(m_)
+c_co.append(c_)
 
 def convertBack(x, y, w, h):
     xmin = int(round(x - (w / 2)))
