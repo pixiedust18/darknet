@@ -1172,7 +1172,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
     extern "C" void draw_detections_cv_v3(mat_cv *mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
     {
         cout<<"ytjtyjdj";
-        ifstream in;
+        /*ifstream in;
         in.open("/content/darknet/floor_coordinates.txt");
         std::cout<<"file opened";
         bool modify;
@@ -1187,7 +1187,28 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         }
         in>>end_x1>>end_y1>>end_x2>>end_y2;
         in.close();
-        
+        */
+        int zones=4, start_x1=3, start_y1=179,start_x2=605, start_y2=386, end_x1=683, end_y1=0, end_x2=403, end_y2=0;
+        int x1[zones-1], y1[zones-1], x2[zones-1], y2[zones-1];
+        float m[zones-1], c[zones-1];
+        x1[0] = 3;
+        y1[0] = 179;
+        x2[0] = 605;
+        y2[0] = 386;
+        m[0] = 0.343;
+        c[0] = 177.968;
+        x1[1] = 136;
+        y1[1] = 119;
+        x2[1] = 631;
+        y2[1] = 257;
+        m[1] = 0.279 ;
+        c[1] = 81.299;
+        x1[2] = 269;
+        y1[2] = 59;
+        x2[2] = 657;
+        y2[2] = 128;
+        m[2] = 0.178;
+        c[2] = 11.6279;
         int xywh[num][4];
         try
         {
