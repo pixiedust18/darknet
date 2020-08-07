@@ -105,7 +105,7 @@ def check(p1, p2, w1, w2, h1, h2, SD, f):
     #    return False
     
     #return True
-def pointaboveline(m, c, x1, y1):
+'''def pointaboveline(m, c, x1, y1):
   if (y1 >= (m*x1 + c)):
     return True
   return False
@@ -310,7 +310,7 @@ def cvDrawBoxes(detections, img, SD, f):
             print("NO SD")
             cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 150), 2)
             cv2.putText(img, str(i)+" No SD", (x,y - 10), font, font_scale, (0, 0, 150), thickness)
-        i+=1
+        i+=1'''
                 
                 
                 
@@ -320,7 +320,7 @@ def cvDrawBoxes(detections, img, SD, f):
                     " [" + str(round(detection[1] * 100, 2)) + "]",
                     (pt1[0], pt1[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                     [0, 255, 0], 2)'''
-    return img
+    #return img
 
 
 netMain = None
