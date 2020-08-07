@@ -20,6 +20,7 @@ m_co=[]
 c_co=[]
 with open("floor_coordinates.txt") as f:
     zones = int(next(f)) # read first line
+    wd, ht = [int(y) for y in next(f).split()]
     start_x1, start_y1, start_x2, start_y2 = [int(y) for y in next(f).split()] # read first line
     end_x1, end_y1, end_x2, end_y2 = [int(y) for y in next(f).split()]
     array = []
@@ -369,8 +370,8 @@ def YOLO(F= 0.00415, sd = 0, video_path = '/content/mask_footage.mp4', configPat
             prev_time = time.time()
             ret, frame_read = cap.read()
             frame_rgb = cv2.cvtColor(frame_read, cv2.COLOR_BGR2RGB)
-            frame_resized = cv2.resize(frame_rgb, (512, 512))
-            frame_resized = cv2.rotate(frame_resized, cv2.ROTATE_90_CLOCKWISE)
+            frame_resized = cv2.resize(frame_rgb, (wd, ht))
+            #frame_resized = cv2.rotate(frame_resized, cv2.ROTATE_90_CLOCKWISE)
             darknet.copy_image_from_bytes(darknet_image,frame_resized.tobytes())
            
         
