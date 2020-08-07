@@ -12,6 +12,26 @@ from scipy.spatial import distance
 from google.colab.patches import cv2_imshow
 
 SD = 0
+x1_co=[]
+y1_co=[] 
+x2_co=[] 
+y2_co =[]
+m_co=[]
+c_co=[]
+with open(“floor_coordinates.txt”) as f:
+    zones = [int(x) for x in next(f).split()] # read first line
+    start_x1, start_y1, start_x2, start_y2 = [int(y) for y in next(f).split()] # read first line
+    end_x1, end_y1, end_x2, end_y2 = [int(y) for y in next(f).split()]
+    array = []
+    for line in f: # read rest of lines
+        x1, y1, x2, y2, m, c = ([float(x) for x in line.split()])
+        x1_co.append(x1)
+        y1_co.append(y1)
+        x2_co.append(x2)
+        y2_co.append(y2)
+        m_co.append(m)
+        c_co.append(c)
+
 
 def convertBack(x, y, w, h):
     xmin = int(round(x - (w / 2)))
@@ -22,6 +42,20 @@ def convertBack(x, y, w, h):
 f = 0.0046
 import math
 def check(p1, p2, w1, w2, h1, h2, SD, f):
+    x1, y1 = p1[0], p1[1]
+    x2, y2 = p2[0], p2[1]
+    if(x1==x2 and y1==y2):
+        return True
+    coords = [(x1, y1), (x2, y2)]
+       
+    social_distance = distance.euclidean([x1, y1], [x2, y2])
+    print(social_distance)
+    param = (x1+x2)/2
+    if(social_distance > 0 and social_distance < 0.25 * param):
+        return False
+    
+    return True
+'''def check(p1, p2, w1, w2, h1, h2, SD, f):
     x1, y1 = p1[0], p1[1]
     x2, y2 = p2[0], p2[1]
     if(x1==x2 and y1==y2):
@@ -39,13 +73,123 @@ def check(p1, p2, w1, w2, h1, h2, SD, f):
     print(ed)
     if (ed>0 and ed<SD):
         return False
-    return True
+    return True'''
     '''param = (x1+x2)/2
     if(social_distance > 0 and social_distance < 0.25 * param):
         return False
     
     return True'''
+def pointaboveline(m, c, x1, y1):
+  if (y1 >= (m*x1 + c)):
+    return True
+  return False
 
+def pointbelowline(m, c, x1, y1):
+  if (y1 <= (m*x1 + c)):
+    return True
+  return False
+###############################################################
+def draw_zones(image):
+    color = (0, 255, 0) 
+    thickness = 5
+
+        
+    pt1 = (start_x1,start_y1)
+    pt2 = (start_x2,start_y2)
+    image = cv2.line(image, pt1, pt2, color, thickness) 
+
+    pt1 = (end_x1, end_y1)
+    pt2 = (end_x2,end_y2)
+    image = cv2.line(image, pt1, pt2, color, thickness) 
+
+    pt1 = (end_x2,end_y2)
+    pt2 = (start_x2,start_y2)
+    image = cv2.line(image, pt1, pt2, color, thickness) 
+
+    pt1 = (start_x1,start_y1)
+    pt2 = (end_x1, end_y1)
+    image = cv2.line(image, pt1, pt2, color, thickness) 
+
+
+    for i in range(zones-1):
+        pt1 = (int(x1_co[i]), int(y1_co[i]))
+        pt2 = (int(x2_co[i]), int(y2_co[i]))
+        image = cv2.line(image, pt1, pt2, color, thickness)
+        
+    return image 
+###############################################################
+def find_zone(find_x, find_y):
+    if (pointaboveline(m_co[0], c_co[0], find_x, find_y)==True):
+        print("Zone", 1)
+        return 1
+
+    for i in range(zones-2):
+        if (pointaboveline(m_co[i], c_co[i], find_x, find_y)==True and pointbelowline(m_co[i+1], c_co[i+1], find_x, find_y)==True):
+            print("Zone", i+2)
+            return i+2
+    print("Zone", zones)
+    return zones
+###############################################################
+def draw_zone1(image, zone_no):
+    color = (0, 0, 255) 
+    thickness = 5
+        
+    if (zone_no == 1):
+        pt1 = (int(start_x1),int(start_y1))
+        pt2 = (int(start_x2),int(start_y2))
+        image = cv2.line(image, pt1, pt2, color, thickness) 
+
+        pt1 = (int(start_x1),int(start_y1))
+        pt2 = (int(x1_co[0]),int(y1_co[0]))
+        image = cv2.line(image, pt1, pt2, color, thickness) 
+
+        pt1 = (int(x1_co[0]),int(y1_co[0]))
+        pt2 = (int(x2_co[0]),int(y2_co[0]))
+        image = cv2.line(image, pt1, pt2, color, thickness) 
+
+        pt1 = (int(start_x2),int(start_y2))
+        pt2 = (int(x2_co[0]),int(y2_co[0]))
+        image = cv2.line(image, pt1, pt2, color, thickness) 
+
+    elif(zone_no == zones):
+        pt1 = (int(end_x1), int(end_y1))
+        pt2 = (int(end_x2), int(end_y2))
+        image = cv2.line(image, pt1, pt2, color, thickness)
+
+        pt1 = (int(end_x1), int(end_y1))
+        pt2 = (int(x1[zone_no - 2]), int(y1[zone_no-2]))
+        image = cv2.line(image, pt1, pt2, color, thickness)
+
+        pt1 = (int(x2[zone_no - 2]), int(y2[zone_no-2]))
+        pt2 = (int(x1[zone_no - 2]), int(y1[zone_no-2]))
+        image = cv2.line(image, pt1, pt2, color, thickness)
+
+        pt1 = (int(x2[zone_no - 2]), int(y2[zone_no-2]))
+        pt2 = (int(end_x2), int(end_y2))
+        image = cv2.line(image, pt1, pt2, color, thickness)
+  
+    else:
+        
+        pt1 = (int(x2[zone_no - 2]), int(y2[zone_no-2]))
+        pt2 = (int(x1[zone_no - 2]), int(y1[zone_no-2]))
+        image = cv2.line(image, pt1, pt2, color, thickness)
+
+        pt1 = (int(x1[zone_no - 1]), int(y1[zone_no-1]))
+        pt2 = (int(x1[zone_no - 2]), int(y1[zone_no-2]))
+        image = cv2.line(image, pt1, pt2, color, thickness)
+
+        pt1 = (int(x2[zone_no - 1]), int(y2[zone_no-1]))
+        pt2 = (int(x2[zone_no - 2]), int(y2[zone_no-2]))
+        image = cv2.line(image, pt1, pt2, color, thickness)
+
+        pt1 = (int(x2[zone_no - 1]), int(y2[zone_no-1]))
+        pt2 = (int(x1[zone_no - 1]), int(y1[zone_no-1]))
+        image = cv2.line(image, pt1, pt2, color, thickness)
+
+    return image
+
+
+######################################################################
 def cvDrawBoxes(detections, img, SD, f):
     print("SD: ", SD)
     face_mids = []
@@ -60,7 +204,8 @@ def cvDrawBoxes(detections, img, SD, f):
     green = (0,255,0)
     red = (255,0,0)
     font=cv2.FONT_HERSHEY_COMPLEX
-    
+    img = draw_zones(img)
+
     for detection in detections:
         x, y, w, h = detection[2][0],\
             detection[2][1],\
@@ -109,6 +254,8 @@ def cvDrawBoxes(detections, img, SD, f):
             sd = check(mid1, mid2, wp[i], wp[j], hp[i], hp[j], SD, f)
             print(i, " -> ", j," = ", sd)
             if(sd == False):
+                zone_no = find_zone(mid1[0], mid1[1])
+                img = draw_zone1(img, zone_no)
                 truth = False
                 break
             j+=1
