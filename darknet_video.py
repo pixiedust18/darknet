@@ -214,7 +214,7 @@ def draw_zone1(image, zone_no):
 
     return image
 
-
+'''
 ######################################################################
 def cvDrawBoxes(detections, img, SD, f):
     print("SD: ", SD)
@@ -310,7 +310,7 @@ def cvDrawBoxes(detections, img, SD, f):
             print("NO SD")
             cv2.rectangle(img, (x, y), (x + w, y + h), (0, 0, 150), 2)
             cv2.putText(img, str(i)+" No SD", (x,y - 10), font, font_scale, (0, 0, 150), thickness)
-        i+=1'''
+        i+=1
                 
                 
                 
@@ -320,7 +320,7 @@ def cvDrawBoxes(detections, img, SD, f):
                     " [" + str(round(detection[1] * 100, 2)) + "]",
                     (pt1[0], pt1[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                     [0, 255, 0], 2)'''
-    #return img
+    return img
 
 
 netMain = None
