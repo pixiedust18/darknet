@@ -205,7 +205,6 @@ def cvDrawBoxes(detections, img, SD, f):
     green = (0,255,0)
     red = (255,0,0)
     font=cv2.FONT_HERSHEY_COMPLEX
-    img = draw_zones(img)
 
     for detection in detections:
         x, y, w, h = detection[2][0],\
@@ -242,12 +241,15 @@ def cvDrawBoxes(detections, img, SD, f):
         elif (label=='Person'):
             x_pmid = x 
             y_pmid = y + h/2
+            print("person")
             feet_coord = (x_pmid, y_pmid)
             person_feet.append(feet_coord)
             
     sd_main = []
     i=0
     j=0
+    img = draw_zones(img)
+
     for mid1 in person_feet:
         truth = True
         j=0
