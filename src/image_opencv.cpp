@@ -971,21 +971,21 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         std::cout << " IN CHECK ";
         if (x1 == x2 and y1 == y2)
             return true;
-        std::cout<<" IN CHECK ";
-        float ed = sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
-        std::cout<<(ed)<<"\n";
+        /*std::cout<<" IN CHECK ";
+    float ed = sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+    std::cout<<(ed)<<"\n";
+    
+    float x_dist = abs(x1-x2);
+    float y_dist = abs(y1-y2);
+    float theta = atan(y_dist / x_dist);
+    
+    float sd1 = h1 / 1.7 * cos(theta);
+    float sd2 = h2 / 1.7 * cos(theta);
+    
+    if (ed > 0 && (sd1 + sd2) > ed)
+        return false;*/
 
-        float x_dist = abs(x1-x2);
-        float y_dist = abs(y1-y2);
-        float theta = atan(y_dist / x_dist);
-
-        float sd1 = h1 / 1.7 * cos(theta);
-        float sd2 = h2 / 1.7 * cos(theta);
-
-        if (ed > 0 && (sd1 + sd2) > ed)
-            return false;
-
-        /*float v1 = 1.6 * F / (F * h1 + 1.65);
+        float v1 = 1.6 * F / (F * h1 + 1.65);
         float v2 = 1.6 * F / (F * h2 + 1.65);
         float u1 = v1* 1.6/h1;
         float vsd1, vsd2;
@@ -1006,215 +1006,16 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
         float ed = sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) + (v1-v2)*(v1-v2));
 
         if(ed>0 && ed<sd)
-            return false;*/
+            return false;
         return true;
     }
-    bool pointaboveline(float m, float c, int x1, int y1)
-    {
-        int y = (int)(m*x1 + c);
-      if(y1 >= y)
-        return true;
-      return false;
-    }
-    bool pointbelowline(float m, float c, int x1, int  y1)
-    {
-        int y = (int)(m*x1 + c);
-
-      if(y1 <= y)
-        return true;
-      return false;
-    }
-    void draw_zones(cv::Mat *mat, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2)
-    {
-        cv::Scalar color;
-        color.val[0] = 0;
-        color.val[1] = 256;
-        color.val[2] = 0;
-        cv::Point pt1, pt2;
-        
-        pt1.x = start_x1;
-        pt1.y = start_y1;
-        pt2.x = start_x2;
-        pt2.y = start_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-        pt1.x = end_x1;
-        pt1.y = end_y1;
-        pt2.x = end_x2;
-        pt2.y = end_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-        for(int i=0; i<zones; i++)
-        {
-            pt1.x = x1[i];
-            pt1.y = y1[i];
-            pt2.x = x2[i];
-            pt2.y = y2[i];
-             cv::line(*mat, pt1, pt2, color, 1, 8);
-        }
-
-        pt1.x = start_x1;
-        pt1.y = start_y1;
-        pt2.x = end_x1;
-        pt2.y = end_y1;
-             cv::line(*mat, pt1, pt2, color, 1, 8);
-
-        pt1.x = start_x2;
-        pt1.y = start_y2;
-        pt2.x = end_x2;
-        pt2.y = end_y2;
-             cv::line(*mat, pt1, pt2, color, 1, 8);
-    }
-    int find_zone(int find_x, int find_y, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, float *m, float* c)
-    {
-        if(pointaboveline(m[0], c[0], find_x, find_y))
-        {
-            cout<<"ZONE : "<<1<<endl;
-            return 1;
-        }
-        for(int i=0; i<(zones-2); i++)
-        {
-            if(pointbelowline(m[i+1], c[i], find_x, find_y) && pointaboveline(m[i], c[i], find_x, find_y))
-            {
-                cout<<"ZONE : "<<i+2<<endl;
-                return i+2;
-            }
-        }
-        return zones;
-    }
-    void draw_zone1(cv::Mat *mat, int zone_no, int start_x1, int start_y1, int start_x2, int start_y2, int end_x1, int end_y1, int end_x2, int end_y2, int zones, int *x1, int* x2, int* y1, int* y2, float *m, float* c)
-    {
-        cv::Scalar color;
-        color.val[0] = 255;
-        color.val[1] = 0;
-        color.val[2] = 0;
-        cv::Point pt1, pt2;
-        
-        if(zone_no == 1)
-        {
-            pt1.x = start_x1;
-            pt1.y = start_y1;
-            pt2.x = start_x2;
-            pt2.y = start_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = start_x1;
-            pt1.y = start_y1;
-            pt2.x = x1[0];
-            pt2.y = y1[0];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = x1[0];
-            pt1.y = y1[0];
-            pt2.x = x2[0];
-            pt2.y = y2[0];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt2.x = x2[0];
-            pt2.y = y2[0];
-            pt2.x = start_x2;
-            pt2.y = start_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-        } else if(zone_no == zones)
-        {
-            pt1.x = end_x1;
-            pt1.y = end_y1;
-            pt2.x = end_x2;
-            pt2.y = end_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = end_x1;
-            pt1.y = end_y1;
-            pt2.x = x1[zones-2];
-            pt2.y = y1[zones-2];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = x1[zones-2];
-            pt1.y = y1[zones-2];
-            pt2.x = x2[zones-2];
-            pt2.y = y2[zones-2];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt2.x = x2[zones-2];
-            pt2.y = y2[zones-2];
-            pt2.x = end_x2;
-            pt2.y = end_y2;
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-        } else
-        {
-            pt1.x = x1[zone_no-2];
-            pt1.y = y1[zone_no-2];
-            pt2.x = x2[zone_no-2];
-            pt2.y = y2[zone_no-2];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = x1[zone_no-2];
-            pt1.y = y1[zone_no-2];
-            pt2.x = x1[zone_no-1];
-            pt2.y = y1[zone_no-1];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = x2[zone_no-2];
-            pt1.y = y2[zone_no-2];
-            pt2.x = x2[zone_no-1];
-            pt2.y = y2[zone_no-1];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-
-            pt1.x = x1[zone_no-1];
-            pt1.y = y1[zone_no-1];
-            pt2.x = x2[zone_no-1];
-            pt2.y = y2[zone_no-1];
-            cv::line(*mat, pt1, pt2, color, 1, 8);
-        }
-
-    }
-    long min_x = 100000, min_y = 100000, max_x = -1, max_y = -1;
     extern "C" void draw_detections_cv_v3(mat_cv *mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
     {
-        cout<<"ytjtyjdj";
-        /*ifstream in;
-        in.open("/content/darknet/floor_coordinates.txt");
-        std::cout<<"file opened";
-        bool modify;
-        //in>>modify>>min_x>>min_y>>max_x>>max_y;
-        int zones, start_x1, start_y1,start_x2, start_y2, end_x1, end_y1, end_x2, end_y2;
-        in>>zones>>start_x1>>start_y1>>start_x2>>start_y2;
-        int x1[zones-1], y1[zones-1], x2[zones-1], y2[zones-1];
-        float m[zones-1], c[zones-1];
-        for(int i=0; i<(zones-1); i++)
-        {
-            in>>x1[i]>>y1[i]>>x2[i]>>y2[i]>>m[i]>>c[i];
-        }
-        in>>end_x1>>end_y1>>end_x2>>end_y2;
-        in.close();
-        */
-        int zones=4, start_x1=3, start_y1=179,start_x2=605, start_y2=386, end_x1=683, end_y1=0, end_x2=403, end_y2=0;
-        int x1[zones-1], y1[zones-1], x2[zones-1], y2[zones-1];
-        float m[zones-1], c[zones-1];
-        x1[0] = 3;
-        y1[0] = 179;
-        x2[0] = 605;
-        y2[0] = 386;
-        m[0] = 0.343;
-        c[0] = 177.968;
-        x1[1] = 136;
-        y1[1] = 119;
-        x2[1] = 631;
-        y2[1] = 257;
-        m[1] = 0.279 ;
-        c[1] = 81.299;
-        x1[2] = 269;
-        y1[2] = 59;
-        x2[2] = 657;
-        y2[2] = 128;
-        m[2] = 0.178;
-        c[2] = 11.6279;
+        std::cout << "extern C void draw_detections_cv_v3 \n";
         int xywh[num][4];
         try
         {
             cv::Mat *show_img = (cv::Mat *)mat;
-            draw_zones(show_img, start_x1, start_y1,start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, y1, x2, y2);
-
             int i, j;
             if (!show_img)
                 return;
@@ -1307,48 +1108,11 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
                         xywh[ppl][1] = top;
                         xywh[ppl][2] = right - left;
                         xywh[ppl][3] = bot - top;
-                        /*if(left<lu_x && bot<lu_y)
-                        {
-                            lu_x = left;
-                            lu_y = bot;
-                            modify = true;
-                        }
-                        if(left<ld_x && bot>ld_y)
-                        {
-                            ld_x = left;
-                            ld_y = bot;
-                            modify = true;
-                        }
-                        if(right>ru_x && bot<ru_y)
-                        {
-                            ru_x = right;
-                            ru_y = bot;
-                            modify = true;
-                        }
-                        if(right>ru_x && bot>ru_y)
-                        {
-                            ru_x = right;
-                            ru_y = bot;
-                            modify = true;
-                        }*/
                         ppl++;
                     }
                 }
             }
-            /*ofstream os;
-            os.open("floor_coordinates.txt"); 
-            std::cout<<"file opened";
-            os<<modify<<" "<<lu_x<<" "<<lu_y<<" "<<ld_x<<" "<<ld_y<<" "<<ru_x<<" "<<ru_y<<" "<<rd_x<<" "<<rd_y;
-
-            //os<<modify<<" "<<min_x<<" "<<min_y<<" "<<max_x<<" "<<max_y;
-            os.close();*/
-            
             std::cout << ppl << std::endl;
-            int zone_count[zones];
-            for(int i=0; i<zones; i++)
-            {
-                zone_count[i] = 0;
-            }
             bool sd_main[ppl];
             for (int l = 0; l < ppl; l++)
             {
@@ -1359,14 +1123,6 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
                     std::cout << l << " -> " << k << " = " << sd << "\n";
                     if (!sd)
                     {
-                        int curr_zone = find_zone(xywh[l][0], xywh[l][1], start_x1, start_y1, start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, x2, y1, y2, m, c);
-                        if(zone_count[curr_zone]==0)
-                        {
-                            draw_zone1(show_img, curr_zone, start_x1, start_y1, start_x2, start_y2, end_x1, end_y1, end_x2, end_y2, zones, x1, x2, y1, y2, m, c);
-                        } else
-                        {
-                            zone_count[curr_zone]++;
-                        }
                         truth = false;
                         break;
                     }
@@ -1414,7 +1170,6 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
                         }
                     }
                 }
-                
                 if (class_id >= 0)
                 {
                     int width = std::max(1.0f, show_img->rows * .002f);
@@ -1517,7 +1272,7 @@ extern "C" int show_image_cv(image im, const char* name, int ms)
                     //    if(copy_img == NULL) copy_img = cvCreateImage(cvSize(show_img->width, show_img->height), show_img->depth, show_img->nChannels);
                     //    cvCopy(show_img, copy_img, 0);
                     //}
-                    //static int img_id = 0;         
+                    //static int img_id = 0;
                     //img_id++;
                     //char image_name[1024];
                     //sprintf(image_name, "result_img/img_%d_%d_%d_%s.jpg", frame_id, img_id, class_id, names[class_id]);
