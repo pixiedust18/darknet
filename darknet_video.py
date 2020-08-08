@@ -25,17 +25,6 @@ def check(p1, p2, w1, w2, h1, h2, SD, f):
     x1, y1 = p1[0], p1[1]
     x2, y2 = p2[0], p2[1]
     if(x1==x2 and y1==y2):
-'''<<<<<<< HEAD
-        return True
-    coords = [(x1, y1), (x2, y2)]
-       
-    social_distance = distance.euclidean([x1, y1], [x2, y2])
-    print(social_distance)
-    param = (x1+x2)/2
-    if(social_distance > 0 and social_distance < 0.25 * param):
-        return False
-    
-======='''
         print("eq")
         return True
     v1 = 1.6 * f / (h1)
@@ -51,11 +40,6 @@ def check(p1, p2, w1, w2, h1, h2, SD, f):
     if (ed>0 and ed<SD):
         return False
     return True
-    '''param = (x1+x2)/2
-    if(social_distance > 0 and social_distance < 0.25 * param):
-        return False
-    
-    return True'''
 
 def cvDrawBoxes(detections, img, SD, f):
     print("SD: ", SD)
